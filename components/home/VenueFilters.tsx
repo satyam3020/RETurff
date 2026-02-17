@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
 
 const CATEGORIES = [
@@ -18,7 +19,7 @@ export default function VenueFilters() {
             <View style={styles.listingHeader}>
                 <Text style={styles.mainTitle}>Available Venues <Text style={styles.countText}>(283)</Text></Text>
                 <TouchableOpacity style={styles.filterToggle}>
-                    <Text style={styles.filterIcon}>📊</Text>
+                    <MaterialCommunityIcons name="tune-variant" size={18} color="#666" />
                 </TouchableOpacity>
             </View>
 

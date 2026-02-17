@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
 
 export default function HomeHeader() {
@@ -8,23 +9,18 @@ export default function HomeHeader() {
             {/* Logo on Left */}
             <View style={styles.leftSection}>
                 <View style={styles.logoCircle}>
-                    <Text style={styles.logoIcon}>🏟️</Text>
+                    <MaterialCommunityIcons name="stadium" size={20} color={COLORS.white} />
                 </View>
+                <Text style={styles.brandText}>RETurf</Text>
             </View>
-
-            {/* Location Picker in Center */}
-            <TouchableOpacity style={styles.centerSection}>
-                <Text style={styles.locationText} numberOfLines={1}>12, SN Dube R...</Text>
-                <Text style={styles.dropdownIcon}>▼</Text>
-            </TouchableOpacity>
 
             {/* Actions on Right */}
             <View style={styles.rightSection}>
                 <TouchableOpacity style={styles.iconButton}>
-                    <Text style={styles.actionIcon}>🔍</Text>
+                    <Ionicons name="search" size={22} color="#666" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.coinsButton}>
-                    <Text style={styles.coinIcon}>🪙</Text>
+                    <MaterialCommunityIcons name="cash" size={18} color="#FF9800" />
                     <Text style={styles.coinCount}>0</Text>
                 </TouchableOpacity>
             </View>
@@ -43,6 +39,8 @@ const styles = StyleSheet.create({
     },
     leftSection: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     logoCircle: {
         width: 36,
@@ -51,28 +49,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#FF5722',
         alignItems: 'center',
         justifyContent: 'center',
+        marginRight: 8,
     },
-    logoIcon: {
+    brandText: {
         fontSize: 20,
-    },
-    centerSection: {
-        flex: 3,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    locationText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginRight: 4,
-    },
-    dropdownIcon: {
-        fontSize: 10,
-        color: '#666',
+        fontWeight: 'bold',
+        color: '#FF5722',
+        letterSpacing: 0.5,
     },
     rightSection: {
-        flex: 2,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
@@ -80,21 +65,15 @@ const styles = StyleSheet.create({
     iconButton: {
         padding: 8,
     },
-    actionIcon: {
-        fontSize: 20,
-    },
     coinsButton: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#F5F5F5',
         paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingVertical: 6,
         borderRadius: 15,
         marginLeft: 5,
-    },
-    coinIcon: {
-        fontSize: 16,
-        marginRight: 4,
+        gap: 4,
     },
     coinCount: {
         fontSize: 12,

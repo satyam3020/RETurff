@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { COLORS, SPACING } from '../../utils/theme';
 
 const { width } = Dimensions.get('window');
@@ -16,8 +18,12 @@ interface Venue {
 }
 
 export default function VenueListingCard({ venue }: { venue: Venue }) {
+    const handlePress = () => {
+        router.push(`/venue/${venue.id}` as any);
+    };
+
     return (
-        <View style={styles.container}>
+        <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.9}>
             {/* Header Info */}
             <View style={styles.header}>
                 <View style={styles.titleSection}>
@@ -25,7 +31,7 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                     <Text style={styles.location}>{venue.location}</Text>
                 </View>
                 <View style={styles.ratingBadge}>
-                    <Text style={styles.starText}>⭐</Text>
+                    <MaterialCommunityIcons name="star" size={12} color="#4CAF50" />
                     <Text style={styles.ratingText}>{venue.rating} <Text style={styles.reviewText}>[{venue.reviews}]</Text></Text>
                 </View>
             </View>
@@ -33,6 +39,12 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
             {/* Image Slider Mockup */}
             <View style={styles.imageContainer}>
                 <Image source={{ uri: venue.images[0] }} style={styles.image} />
+
+                {/* Discount Badge */}
+                <View style={styles.discountBadge}>
+                    <Text style={styles.discountText}>20% OFF</Text>
+                </View>
+
                 <View style={styles.pagination}>
                     <View style={[styles.dot, styles.dotActive]} />
                     <View style={styles.dot} />
@@ -43,7 +55,7 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
             {/* Footer Amenities & Booking */}
             <View style={styles.footer}>
                 <View style={styles.amenities}>
-                    <Text style={styles.amenityIcon}>🏢</Text>
+                    <MaterialCommunityIcons name="information" size={16} color="#03A9F4" />
                     <Text style={styles.amenityText} numberOfLines={1}>
                         {venue.amenities.join(', ')}
                     </Text>
@@ -54,7 +66,7 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                     <View style={styles.sportCircle}><Text style={{ fontSize: 10 }}>🏸</Text></View>
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 
@@ -119,6 +131,20 @@ const styles = StyleSheet.create({
     image: {
         width: '100%',
         height: '100%',
+    },
+    discountBadge: {
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        backgroundColor: '#FF5722',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+    },
+    discountText: {
+        color: COLORS.white,
+        fontSize: 11,
+        fontWeight: 'bold',
     },
     pagination: {
         position: 'absolute',

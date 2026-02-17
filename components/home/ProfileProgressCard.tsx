@@ -1,35 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
+import ProfileCompletionModal from '../profile/ProfileCompletionModal';
 
 export default function ProfileProgressCard() {
-    return (
-        <View style={styles.container}>
-            <View style={styles.card}>
-                <View style={styles.content}>
-                    <Text style={styles.title}>Profile Completion</Text>
-                    <View style={styles.progressContainer}>
-                        <View style={styles.progressBar}>
-                            <View style={[styles.progressFill, { width: '40%' }]} />
-                        </View>
-                        <Text style={styles.progressText}>40%</Text>
-                    </View>
-                    <Text style={styles.badgeNotice}>
-                        Complete your profile to earn the <Text style={styles.boldText}>Verified Pro - Badge!</Text>
-                    </Text>
-                </View>
+    const [modalVisible, setModalVisible] = useState(false);
 
-                <View style={styles.badgeContainer}>
-                    <View style={styles.badgePlaceholder}>
-                        <Text style={styles.badgeIcon}>🛡️</Text>
-                        <Text style={styles.verifiedText}>Verified Pro</Text>
+    return (
+        <>
+            <View style={styles.container}>
+                <TouchableOpacity
+                    style={styles.card}
+                    onPress={() => setModalVisible(true)}
+                    activeOpacity={0.8}
+                >
+                    <View style={styles.content}>
+                        <Text style={styles.title}>Profile Completion</Text>
+                        <View style={styles.progressContainer}>
+                            <View style={styles.progressBar}>
+                                <View style={[styles.progressFill, { width: '40%' }]} />
+                            </View>
+                            <Text style={styles.progressText}>40%</Text>
+                        </View>
+                        <Text style={styles.badgeNotice}>
+                            Complete your profile to earn the <Text style={styles.boldText}>Verified Pro - Badge!</Text>
+                        </Text>
                     </View>
-                    <TouchableOpacity style={styles.closeBtn}>
-                        <Text style={styles.closeIcon}>✕</Text>
-                    </TouchableOpacity>
-                </View>
+
+                    <View style={styles.badgeContainer}>
+                        <View style={styles.badgePlaceholder}>
+                            <MaterialCommunityIcons name="shield-check" size={28} color="#999" />
+                            <Text style={styles.verifiedText}>Verified Pro</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.closeBtn}
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                // Handle close
+                            }}
+                        >
+                            <MaterialCommunityIcons name="close" size={12} color="#999" />
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
             </View>
-        </View>
+
+            <ProfileCompletionModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+            />
+        </>
     );
 }
 

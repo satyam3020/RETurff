@@ -1,6 +1,6 @@
 // Tab layout - bottom navigation
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/theme';
 
 export default function TabLayout() {
@@ -29,42 +29,56 @@ export default function TabLayout() {
                 name="index"
                 options={{
                     title: 'PLAY',
-                    tabBarIcon: ({ color }) => <TabBarIcon name="🏟️" color={color} />,
+                    tabBarIcon: ({ color }) => <MaterialCommunityIcons name="stadium" size={24} color={color} />,
                 }}
             />
             <Tabs.Screen
+                name="slots"
+                options={{
+                    title: 'YOUR BOOKINGS',
+                    tabBarIcon: ({ color }) => <MaterialCommunityIcons name="calendar-check" size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="bookings"
+                options={{
+                    title: 'NOTIFICATION',
+                    tabBarIcon: ({ color }) => <Ionicons name="notifications" size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'PROFILE',
+                    tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
+                }}
+            />
+
+            {/* Hide other tabs */}
+            <Tabs.Screen
                 name="shop"
                 options={{
-                    title: 'SHOP',
-                    tabBarIcon: ({ color }) => <TabBarIcon name="🛍️" color={color} />,
+                    href: null, // This hides the tab
                 }}
             />
             <Tabs.Screen
                 name="coaching"
                 options={{
-                    title: 'COACHING',
-                    tabBarIcon: ({ color }) => <TabBarIcon name="📣" color={color} />,
+                    href: null,
                 }}
             />
             <Tabs.Screen
                 name="events"
                 options={{
-                    title: 'EVENTS',
-                    tabBarIcon: ({ color }) => <TabBarIcon name="⭐" color={color} />,
+                    href: null,
                 }}
             />
             <Tabs.Screen
                 name="more"
                 options={{
-                    title: 'MORE',
-                    tabBarIcon: ({ color }) => <TabBarIcon name="🧭" color={color} />,
+                    href: null,
                 }}
             />
         </Tabs>
     );
-}
-
-// Simple emoji icon component
-function TabBarIcon({ name, color }: { name: string; color: string }) {
-    return <Text style={{ fontSize: 24, color }}>{name}</Text>;
 }

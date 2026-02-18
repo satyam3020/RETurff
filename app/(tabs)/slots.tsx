@@ -1,147 +1,128 @@
-// Slots Screen - Browse and select time slots
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
-import { getAvailableSlots } from '../../services/api';
-import { formatDate } from '../../utils/validators';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../utils/theme';
-import SlotPicker from '../../components/turf/SlotPicker';
-import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import ErrorMessage from '../../components/ui/ErrorMessage';
-import type { TimeSlot } from '../../types';
+// Your Bookings Screen - Shows user's booked turfs
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING } from '../../utils/theme';
 
-export default function SlotsScreen() {
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-    const [slots, setSlots] = useState<TimeSlot[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+// Mock booking data - will be replaced with actual API data
+const MOCK_BOOKINGS = [
+    {
+        id: '1',
+        venueName: 'Pitchnova Sports Arena',
+        location: 'Bhayandar West, Mumbai',
+        date: '18 Feb 2026',
+        time: '6:00 - 7:00 AM',
+        sport: 'Pickleball',
+        court: 'Full Court',
+        price: 200,
+        status: 'upcoming', // upcoming, completed, cancelled
+        image: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400',
+    },
+    {
+        id: '2',
+        venueName: 'Nine Star Turf',
+        location: 'Andheri West, Mumbai',
+        date: '20 Feb 2026',
+        time: '7:00 - 8:00 PM',
+        sport: 'Football',
+        court: 'Full Ground',
+        price: 500,
+        status: 'upcoming',
+        image: 'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=400',
+    },
+];
 
-    const loadSlots = async (date: Date) => {
-        setLoading(true);
-        setError(null);
-        setSelectedSlot(null);
+export default function BookingsScreen() {
+    const upcomingBookings = MOCK_BOOKINGS.filter(b => b.status === 'upcoming');
+    const pastBookings = MOCK_BOOKINGS.filter(b => b.status === 'completed');
 
-        const response = await getAvailableSlots(date);
+    const renderBookingCard = (booking: typeof MOCK_BOOKINGS[0]) => (
+        <TouchableOpacity key={booking.id} style={styles.bookingCard}>
+            <Image source={{ uri: booking.image }} style={styles.bookingImage} />
 
-        if (response.success && response.data) {
-            setSlots(response.data);
-        } else {
-            setError(response.error || 'Failed to load slots');
-        }
+            <View style={styles.bookingContent}>
+                <View style={styles.bookingHeader}>
+                    <Text style={styles.venueName}>{booking.venueName}</Text>
+                    <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>
+                            {booking.status === 'upcoming' ? 'Upcoming' : 'Completed'}
+                        </Text>
+                    </View>
+                </View>
 
-        setLoading(false);
-    };
+                <View style={styles.locationRow}>
+                    <Ionicons name="location" size={14} color="#666" />
+                    <Text style={styles.locationText}>{booking.location}</Text>
+                </View>
 
-    useEffect(() => {
-        loadSlots(selectedDate);
-    }, [selectedDate]);
+                <View style={styles.detailsRow}>
+                    <View style={styles.detailItem}>
+                        <MaterialCommunityIcons name="calendar" size={16} color="#FF5722" />
+                        <Text style={styles.detailText}>{booking.date}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                        <MaterialCommunityIcons name="clock-outline" size={16} color="#FF5722" />
+                        <Text style={styles.detailText}>{booking.time}</Text>
+                    </View>
+                </View>
 
-    const getNextDays = (count: number) => {
-        const days = [];
-        for (let i = 0; i < count; i++) {
-            const date = new Date();
-            date.setDate(date.getDate() + i);
-            days.push(date);
-        }
-        return days;
-    };
+                <View style={styles.detailsRow}>
+                    <View style={styles.detailItem}>
+                        <MaterialCommunityIcons name="tennis" size={16} color="#4CAF50" />
+                        <Text style={styles.detailText}>{booking.sport}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                        <MaterialCommunityIcons name="stadium" size={16} color="#4CAF50" />
+                        <Text style={styles.detailText}>{booking.court}</Text>
+                    </View>
+                </View>
 
-    const handleDateSelect = (date: Date) => {
-        setSelectedDate(date);
-    };
-
-    const handleSlotSelect = (slot: TimeSlot) => {
-        setSelectedSlot(slot);
-    };
-
-    const handleContinue = () => {
-        if (selectedSlot) {
-            // Navigate to booking confirmation with slot data
-            router.push({
-                pathname: '/booking/[id]',
-                params: {
-                    id: selectedSlot.id,
-                    date: selectedSlot.date,
-                    startTime: selectedSlot.startTime,
-                    endTime: selectedSlot.endTime,
-                    price: selectedSlot.price.toString(),
-                },
-            });
-        }
-    };
-
-    const nextDays = getNextDays(7);
+                <View style={styles.footer}>
+                    <Text style={styles.price}>₹{booking.price}</Text>
+                    <TouchableOpacity style={styles.viewButton}>
+                        <Text style={styles.viewButtonText}>View Details</Text>
+                        <Ionicons name="chevron-forward" size={16} color="#FF5722" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
 
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.scrollView}>
-                {/* Date Selector */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Select Date</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScroll}>
-                        {nextDays.map((date, index) => {
-                            const isSelected = formatDate(date) === formatDate(selectedDate);
-                            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                            const dayNumber = date.getDate();
-                            const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Your Bookings</Text>
+            </View>
 
-                            return (
-                                <TouchableOpacity
-                                    key={index}
-                                    style={[styles.dateCard, isSelected && styles.dateCardSelected]}
-                                    onPress={() => handleDateSelect(date)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
-                                        {dayName}
-                                    </Text>
-                                    <Text style={[styles.dayNumber, isSelected && styles.dayNumberSelected]}>
-                                        {dayNumber}
-                                    </Text>
-                                    <Text style={[styles.monthName, isSelected && styles.monthNameSelected]}>
-                                        {monthName}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                {upcomingBookings.length === 0 && pastBookings.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <MaterialCommunityIcons name="calendar-blank" size={80} color="#E0E0E0" />
+                        <Text style={styles.emptyTitle}>No Bookings Yet</Text>
+                        <Text style={styles.emptyText}>
+                            Book your first turf and start playing!
+                        </Text>
+                    </View>
+                ) : (
+                    <>
+                        {upcomingBookings.length > 0 && (
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
+                                {upcomingBookings.map(renderBookingCard)}
+                            </View>
+                        )}
 
-                {/* Slots */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Available Slots</Text>
+                        {pastBookings.length > 0 && (
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Past Bookings</Text>
+                                {pastBookings.map(renderBookingCard)}
+                            </View>
+                        )}
+                    </>
+                )}
 
-                    {loading ? (
-                        <LoadingSpinner message="Loading slots..." />
-                    ) : error ? (
-                        <ErrorMessage message={error} onRetry={() => loadSlots(selectedDate)} />
-                    ) : slots.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyEmoji}>😔</Text>
-                            <Text style={styles.emptyText}>No slots available for this date</Text>
-                        </View>
-                    ) : (
-                        <SlotPicker
-                            slots={slots}
-                            selectedSlot={selectedSlot || undefined}
-                            onSelectSlot={handleSlotSelect}
-                        />
-                    )}
-                </View>
+                <View style={{ height: 20 }} />
             </ScrollView>
-
-            {/* Continue Button */}
-            {selectedSlot && !loading && !error && (
-                <View style={styles.footer}>
-                    <Button
-                        title="Continue to Booking"
-                        onPress={handleContinue}
-                        style={styles.continueButton}
-                    />
-                </View>
-            )}
         </View>
     );
 }
@@ -149,81 +130,142 @@ export default function SlotsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: '#F5F5F5',
+    },
+    header: {
+        backgroundColor: COLORS.white,
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
     },
     scrollView: {
         flex: 1,
     },
     section: {
-        padding: SPACING.lg,
+        marginTop: SPACING.md,
     },
     sectionTitle: {
-        ...TYPOGRAPHY.h3,
-        color: COLORS.textPrimary,
-        marginBottom: SPACING.md,
-    },
-    dateScroll: {
-        marginHorizontal: -SPACING.lg,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
         paddingHorizontal: SPACING.lg,
+        marginBottom: SPACING.sm,
     },
-    dateCard: {
+    bookingCard: {
         backgroundColor: COLORS.white,
-        borderWidth: 2,
-        borderColor: COLORS.gray300,
-        borderRadius: BORDER_RADIUS.md,
+        marginHorizontal: SPACING.lg,
+        marginBottom: SPACING.md,
+        borderRadius: 12,
+        overflow: 'hidden',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    bookingImage: {
+        width: '100%',
+        height: 120,
+        resizeMode: 'cover',
+    },
+    bookingContent: {
         padding: SPACING.md,
-        marginRight: SPACING.sm,
+    },
+    bookingHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
-        minWidth: 70,
+        justifyContent: 'space-between',
+        marginBottom: SPACING.sm,
     },
-    dateCardSelected: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-    },
-    dayName: {
-        ...TYPOGRAPHY.caption,
-        color: COLORS.textSecondary,
-        marginBottom: 4,
-    },
-    dayNameSelected: {
-        color: COLORS.white,
-    },
-    dayNumber: {
-        ...TYPOGRAPHY.h3,
-        color: COLORS.textPrimary,
+    venueName: {
+        flex: 1,
+        fontSize: 16,
         fontWeight: 'bold',
-        marginBottom: 2,
+        color: '#333',
     },
-    dayNumberSelected: {
-        color: COLORS.white,
+    statusBadge: {
+        backgroundColor: '#E8F5E9',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
-    monthName: {
-        ...TYPOGRAPHY.caption,
-        color: COLORS.textSecondary,
+    statusText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#4CAF50',
     },
-    monthNameSelected: {
-        color: COLORS.white,
+    locationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: SPACING.sm,
+    },
+    locationText: {
+        fontSize: 13,
+        color: '#666',
+    },
+    detailsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        marginBottom: SPACING.sm,
+    },
+    detailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    detailText: {
+        fontSize: 13,
+        color: '#666',
+    },
+    footer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: SPACING.sm,
+        paddingTop: SPACING.sm,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    price: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    viewButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    viewButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FF5722',
     },
     emptyState: {
         alignItems: 'center',
-        padding: SPACING.xl,
+        justifyContent: 'center',
+        paddingVertical: 80,
+        paddingHorizontal: SPACING.xl,
     },
-    emptyEmoji: {
-        fontSize: 48,
-        marginBottom: SPACING.md,
+    emptyTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        marginTop: SPACING.lg,
+        marginBottom: SPACING.sm,
     },
     emptyText: {
-        ...TYPOGRAPHY.body,
-        color: COLORS.textSecondary,
+        fontSize: 14,
+        color: '#666',
         textAlign: 'center',
-    },
-    footer: {
-        padding: SPACING.lg,
-        backgroundColor: COLORS.white,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.gray200,
-    },
-    continueButton: {
-        width: '100%',
+        lineHeight: 20,
     },
 });

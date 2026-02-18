@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, FlatList, Image, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
 
 const { width } = Dimensions.get('window');
@@ -43,7 +44,8 @@ export default function BannerCarousel() {
             <Image source={{ uri: item.image }} style={styles.image} />
             <View style={styles.overlay}>
                 <View style={styles.badge}>
-                    <Text style={styles.badgeText}>👑 {item.subtitle}</Text>
+                    <MaterialCommunityIcons name="crown" size={12} color="#FFD700" />
+                    <Text style={styles.badgeText}>{item.subtitle}</Text>
                 </View>
                 <Text style={styles.title}>{item.title}</Text>
                 <Text style={styles.sportText}>{item.sport}</Text>
@@ -111,6 +113,9 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 4,
         marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
     badgeText: {
         color: '#FFD700',

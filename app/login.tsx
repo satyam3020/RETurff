@@ -10,6 +10,7 @@ import {
     Platform,
     Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../utils/theme';
@@ -37,66 +38,72 @@ export default function LoginScreen() {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <StatusBar style="light" />
 
-            {/* Top Section - Orange Branding */}
-            <View style={styles.header}>
-                <View style={styles.logoContainer}>
-                    {/* Simple Text Logo for now */}
-                    <Text style={styles.logoIcon}>🏟️</Text>
-                    <Text style={styles.logoText}>RETurf</Text>
-                    <Text style={styles.tagline}>INDIA'S SPORTS APP</Text>
+                {/* Top Section - Orange Branding */}
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        {/* Simple Text Logo for now */}
+                        <Text style={styles.logoIcon}>🏟️</Text>
+                        <Text style={styles.logoText}>RETurf</Text>
+                        <Text style={styles.tagline}>INDIA'S SPORTS APP</Text>
+                    </View>
+
+                    {/* Background decorative circles could go here */}
+                    <View style={styles.circleDecoration} />
                 </View>
 
-                {/* Background decorative circles could go here */}
-                <View style={styles.circleDecoration} />
-            </View>
+                {/* Bottom Section - White Card */}
+                <View style={styles.content}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.dragHandle} />
+                        <Text style={styles.title}>Let's sign you in!</Text>
+                    </View>
 
-            {/* Bottom Section - White Card */}
-            <View style={styles.content}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.dragHandle} />
-                    <Text style={styles.title}>Let's sign you in!</Text>
-                </View>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Mobile Number</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Ex. 9000000000"
+                            keyboardType="number-pad"
+                            maxLength={10}
+                            value={mobileNumber}
+                            onChangeText={setMobileNumber}
+                            placeholderTextColor={COLORS.gray400}
+                        />
+                        <Text style={styles.helperText}>
+                            A 4-digit code will be sent to your mobile number to verify you're really you!
+                        </Text>
+                    </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Mobile Number</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Ex. 9000000000"
-                        keyboardType="number-pad"
-                        maxLength={10}
-                        value={mobileNumber}
-                        onChangeText={setMobileNumber}
-                        placeholderTextColor={COLORS.gray400}
-                    />
-                    <Text style={styles.helperText}>
-                        A 4-digit code will be sent to your mobile number to verify you're really you!
+                    <TouchableOpacity
+                        style={[styles.button, loading && styles.buttonDisabled]}
+                        onPress={handleSendOTP}
+                        disabled={loading}
+                    >
+                        <Text style={styles.buttonText}>{loading ? 'SENDING...' : 'SEND OTP'}</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.termsText}>
+                        By tapping 'Send OTP', you agree to RETurf's {'\n'}
+                        <Text style={styles.linkText}>Terms & Conditions</Text>
                     </Text>
                 </View>
-
-                <TouchableOpacity
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={handleSendOTP}
-                    disabled={loading}
-                >
-                    <Text style={styles.buttonText}>{loading ? 'SENDING...' : 'SEND OTP'}</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.termsText}>
-                    By tapping 'Send OTP', you agree to RETurf's {'\n'}
-                    <Text style={styles.linkText}>Terms & Conditions</Text>
-                </Text>
-            </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#FF5722', // Orange background matches header
+    },
     container: {
         flex: 1,
         backgroundColor: '#FF5722', // Orange background

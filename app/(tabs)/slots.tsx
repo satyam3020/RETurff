@@ -1,101 +1,122 @@
 // Your Bookings Screen - Shows user's booked turfs
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
+// import { getUserBookings } from '../../services/api'; // Removed mock API
+import { useBookings, ConfirmedBooking } from '../../context/BookingContext'; // Import context
+// import type { Booking } from '../../types'; // Replaced by ConfirmedBooking
 
-// Mock booking data - will be replaced with actual API data
-const MOCK_BOOKINGS = [
-    {
-        id: '1',
-        venueName: 'Pitchnova Sports Arena',
-        location: 'Bhayandar West, Mumbai',
-        date: '18 Feb 2026',
-        time: '6:00 - 7:00 AM',
-        sport: 'Pickleball',
-        court: 'Full Court',
-        price: 200,
-        status: 'upcoming', // upcoming, completed, cancelled
-        image: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400',
-    },
-    {
-        id: '2',
-        venueName: 'Nine Star Turf',
-        location: 'Andheri West, Mumbai',
-        date: '20 Feb 2026',
-        time: '7:00 - 8:00 PM',
-        sport: 'Football',
-        court: 'Full Ground',
-        price: 500,
-        status: 'upcoming',
-        image: 'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=400',
-    },
-];
+// Status config for badge colors and labels
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+    payment_pending: { label: 'Payment Pending', bg: '#FFF3E0', color: '#FF9800' },
+    upcoming: { label: 'Upcoming', bg: '#E8F5E9', color: '#4CAF50' },
+    completed: { label: 'Completed', bg: '#E3F2FD', color: '#2196F3' },
+    cancelled: { label: 'Cancelled', bg: '#FFEBEE', color: '#F44336' },
+};
+
+// Venue images map (fallback)
+const VENUE_IMAGE = 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=400';
 
 export default function BookingsScreen() {
-    const upcomingBookings = MOCK_BOOKINGS.filter(b => b.status === 'upcoming');
-    const pastBookings = MOCK_BOOKINGS.filter(b => b.status === 'completed');
+    const { bookings, refreshBookings } = useBookings();
+    const [refreshing, setRefreshing] = useState(false);
 
-    const renderBookingCard = (booking: typeof MOCK_BOOKINGS[0]) => (
-        <TouchableOpacity key={booking.id} style={styles.bookingCard}>
-            <Image source={{ uri: booking.image }} style={styles.bookingImage} />
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await refreshBookings();
+        setRefreshing(false);
+    }, [refreshBookings]);
 
-            <View style={styles.bookingContent}>
-                <View style={styles.bookingHeader}>
-                    <Text style={styles.venueName}>{booking.venueName}</Text>
-                    <View style={styles.statusBadge}>
-                        <Text style={styles.statusText}>
-                            {booking.status === 'upcoming' ? 'Upcoming' : 'Completed'}
-                        </Text>
+    const pendingBookings = bookings.filter(b => b.status === 'payment_pending');
+    const upcomingBookings = bookings.filter(b => b.status === 'upcoming');
+    const pastBookings = bookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
+
+    const renderBookingCard = (booking: ConfirmedBooking) => {
+        const statusCfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.upcoming;
+
+        // Format date nicely (assuming booking.date is consistent)
+        // const dateObj = new Date(booking.date);
+        // const formattedDate = isNaN(dateObj.getTime())
+        //    ? booking.date
+        //    : dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const formattedDate = booking.date;
+
+        // Get start and end time from the first slot or aggregate
+        const startTime = booking.slots[0]?.time.split(' - ')[0] || '';
+        const endTime = booking.slots[booking.slots.length - 1]?.time.split(' - ')[1] || '';
+
+        return (
+            <TouchableOpacity key={booking.id} style={styles.bookingCard}>
+                <Image source={{ uri: VENUE_IMAGE }} style={styles.bookingImage} />
+
+                {/* Payment Pending banner */}
+                {booking.status === 'payment_pending' && (
+                    <View style={styles.pendingBanner}>
+                        <Ionicons name="time-outline" size={14} color="#FF9800" />
+                        <Text style={styles.pendingBannerText}>Payment Pending — Pay at venue</Text>
+                    </View>
+                )}
+
+                <View style={styles.bookingContent}>
+                    <View style={styles.bookingHeader}>
+                        <Text style={styles.venueName} numberOfLines={1}>{booking.turfName}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
+                            <Text style={[styles.statusText, { color: statusCfg.color }]}>
+                                {statusCfg.label}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.detailsRow}>
+                        <View style={styles.detailItem}>
+                            <MaterialCommunityIcons name="calendar" size={16} color="#FF5722" />
+                            <Text style={styles.detailText}>{formattedDate}</Text>
+                        </View>
+                        <View style={styles.detailItem}>
+                            <MaterialCommunityIcons name="clock-outline" size={16} color="#FF5722" />
+                            <Text style={styles.detailText}>{startTime} - {endTime}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.footer}>
+                        <Text style={styles.price}>₹{booking.totalAmount.toLocaleString('en-IN')}</Text>
+                        <TouchableOpacity style={styles.viewButton}>
+                            <Text style={styles.viewButtonText}>View Details</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#FF5722" />
+                        </TouchableOpacity>
                     </View>
                 </View>
+            </TouchableOpacity>
+        );
+    };
 
-                <View style={styles.locationRow}>
-                    <Ionicons name="location" size={14} color="#666" />
-                    <Text style={styles.locationText}>{booking.location}</Text>
-                </View>
-
-                <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                        <MaterialCommunityIcons name="calendar" size={16} color="#FF5722" />
-                        <Text style={styles.detailText}>{booking.date}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <MaterialCommunityIcons name="clock-outline" size={16} color="#FF5722" />
-                        <Text style={styles.detailText}>{booking.time}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                        <MaterialCommunityIcons name="tennis" size={16} color="#4CAF50" />
-                        <Text style={styles.detailText}>{booking.sport}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <MaterialCommunityIcons name="stadium" size={16} color="#4CAF50" />
-                        <Text style={styles.detailText}>{booking.court}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.footer}>
-                    <Text style={styles.price}>₹{booking.price}</Text>
-                    <TouchableOpacity style={styles.viewButton}>
-                        <Text style={styles.viewButtonText}>View Details</Text>
-                        <Ionicons name="chevron-forward" size={16} color="#FF5722" />
-                    </TouchableOpacity>
-                </View>
+    const renderSection = (title: string, data: ConfirmedBooking[]) => {
+        if (data.length === 0) return null;
+        return (
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{title}</Text>
+                {data.map(renderBookingCard)}
             </View>
-        </TouchableOpacity>
-    );
+        );
+    };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Your Bookings</Text>
+                {bookings.length > 0 && (
+                    <Text style={styles.headerCount}>{bookings.length} booking{bookings.length !== 1 ? 's' : ''}</Text>
+                )}
             </View>
 
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                {upcomingBookings.length === 0 && pastBookings.length === 0 ? (
+            <ScrollView
+                style={styles.scrollView}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF5722']} />}
+            >
+                {bookings.length === 0 ? (
                     <View style={styles.emptyState}>
                         <MaterialCommunityIcons name="calendar-blank" size={80} color="#E0E0E0" />
                         <Text style={styles.emptyTitle}>No Bookings Yet</Text>
@@ -105,25 +126,15 @@ export default function BookingsScreen() {
                     </View>
                 ) : (
                     <>
-                        {upcomingBookings.length > 0 && (
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
-                                {upcomingBookings.map(renderBookingCard)}
-                            </View>
-                        )}
-
-                        {pastBookings.length > 0 && (
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Past Bookings</Text>
-                                {pastBookings.map(renderBookingCard)}
-                            </View>
-                        )}
+                        {renderSection('⏳ Payment Pending', pendingBookings)}
+                        {renderSection('Upcoming Bookings', upcomingBookings)}
+                        {renderSection('Past Bookings', pastBookings)}
                     </>
                 )}
 
                 <View style={{ height: 20 }} />
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -138,11 +149,18 @@ const styles = StyleSheet.create({
         paddingVertical: SPACING.md,
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#333',
+    },
+    headerCount: {
+        fontSize: 13,
+        color: '#888',
     },
     scrollView: {
         flex: 1,
@@ -171,8 +189,23 @@ const styles = StyleSheet.create({
     },
     bookingImage: {
         width: '100%',
-        height: 120,
+        height: 110,
         resizeMode: 'cover',
+    },
+    pendingBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#FFF8E1',
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 6,
+        borderBottomWidth: 1,
+        borderBottomColor: '#FFE082',
+    },
+    pendingBannerText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#FF9800',
     },
     bookingContent: {
         padding: SPACING.md,
@@ -188,9 +221,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
+        marginRight: 8,
     },
     statusBadge: {
-        backgroundColor: '#E8F5E9',
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
@@ -198,17 +231,6 @@ const styles = StyleSheet.create({
     statusText: {
         fontSize: 11,
         fontWeight: '600',
-        color: '#4CAF50',
-    },
-    locationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginBottom: SPACING.sm,
-    },
-    locationText: {
-        fontSize: 13,
-        color: '#666',
     },
     detailsRow: {
         flexDirection: 'row',

@@ -7,8 +7,8 @@ import {
     Image,
     TouchableOpacity,
     Dimensions,
-    SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING } from '../../utils/theme';

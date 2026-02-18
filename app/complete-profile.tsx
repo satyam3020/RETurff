@@ -6,13 +6,13 @@ import {
     TouchableOpacity,
     TextInput,
     Image,
-    SafeAreaView,
     ScrollView,
     Platform,
     Dimensions,
     Animated,
     FlatList,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../utils/theme';

@@ -23,7 +23,7 @@ export interface TimeSlot {
     date: string;
 }
 
-export type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
+export type BookingStatus = 'upcoming' | 'completed' | 'cancelled' | 'payment_pending';
 
 export interface Booking {
     id: string;

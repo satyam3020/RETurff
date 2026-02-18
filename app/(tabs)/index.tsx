@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, SafeAreaView } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getVenues } from '../../services/api';
 import { COLORS, SPACING } from '../../utils/theme';
 import type { Turf } from '../../types';
@@ -46,7 +47,7 @@ export default function HomeScreen() {
 
     if (loading && !refreshing) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.container} edges={['top']}>
                 <HomeHeader />
                 <LoadingSpinner message="Searching for venues..." />
             </SafeAreaView>
@@ -55,7 +56,7 @@ export default function HomeScreen() {
 
     if (error && !refreshing) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.container} edges={['top']}>
                 <HomeHeader />
                 <ErrorMessage message={error} onRetry={loadData} />
             </SafeAreaView>
@@ -63,7 +64,7 @@ export default function HomeScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             {/* Custom Branded Header */}
             <HomeHeader />
 

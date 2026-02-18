@@ -7,11 +7,11 @@ import {
     Dimensions,
     Image,
     TouchableOpacity,
-    SafeAreaView,
     NativeSyntheticEvent,
     NativeScrollEvent,
     Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../utils/theme';
@@ -68,7 +68,7 @@ export default function OnboardingScreen() {
     const [showSplash, setShowSplash] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Splash Screen Logic
     useEffect(() => {

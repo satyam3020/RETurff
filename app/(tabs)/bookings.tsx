@@ -1,117 +1,203 @@
-// My Bookings Screen - List user's bookings
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
-import { getUserBookings } from '../../services/api';
-import { COLORS, TYPOGRAPHY, SPACING } from '../../utils/theme';
-import BookingCard from '../../components/turf/BookingCard';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import ErrorMessage from '../../components/ui/ErrorMessage';
-import type { Booking } from '../../types';
+// Notifications Screen
+import React, { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { COLORS, SPACING } from '../../utils/theme';
 
-export default function BookingsScreen() {
-    const [bookings, setBookings] = useState<Booking[]>([]);
-    const [loading, setLoading] = useState(true);
+// Mock Notifications Data
+const MOCK_NOTIFICATIONS = [
+    {
+        id: '1',
+        title: 'Booking Confirmed! ✅',
+        message: 'Your slot for Pickleball Court 2 on 18 Feb is successfully verified.',
+        time: '2 mins ago',
+        type: 'success',
+        read: false,
+    },
+    {
+        id: '2',
+        title: 'Sunday Special Offer 🎁',
+        message: 'Get flat 10% OFF on all slots booked for this Sunday. Hurry up!',
+        time: '2 hours ago',
+        type: 'promo',
+        read: false,
+    },
+    {
+        id: '3',
+        title: 'Wallet Updated 💳',
+        message: '₹50 Cashback has been credited to your wallet from your last booking.',
+        time: '1 day ago',
+        type: 'info',
+        read: true,
+    },
+    {
+        id: '4',
+        title: 'Maintenance Alert ⚠️',
+        message: 'Tennis Court 1 will be under maintenance from 2 PM to 4 PM tomorrow.',
+        time: '2 days ago',
+        type: 'warning',
+        read: true,
+    },
+];
+
+export default function NotificationsScreen() {
     const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
 
-    const loadBookings = async (isRefresh = false) => {
-        if (isRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-        setError(null);
-
-        const response = await getUserBookings();
-
-        if (response.success && response.data) {
-            setBookings(response.data);
-        } else {
-            setError(response.error || 'Failed to load bookings');
-        }
-
-        setLoading(false);
-        setRefreshing(false);
+    const onRefresh = () => {
+        setRefreshing(true);
+        // Simulate fetch
+        setTimeout(() => {
+            setRefreshing(false);
+        }, 1000);
     };
 
-    useEffect(() => {
-        loadBookings();
-    }, []);
-
-    const onRefresh = useCallback(() => {
-        loadBookings(true);
-    }, []);
-
-    if (loading && !refreshing) {
-        return <LoadingSpinner message="Loading your bookings..." />;
-    }
-
-    if (error && !refreshing) {
-        return <ErrorMessage message={error} onRetry={() => loadBookings()} />;
-    }
-
-    if (bookings.length === 0) {
-        return (
-            <ScrollView
-                style={styles.container}
-                contentContainerStyle={styles.emptyContainer}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-                <Text style={styles.emptyEmoji}>📝</Text>
-                <Text style={styles.emptyTitle}>No bookings yet</Text>
-                <Text style={styles.emptyText}>
-                    Book your first slot and it will appear here!
-                </Text>
-            </ScrollView>
-        );
-    }
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'success': return { name: 'checkmark-circle', color: '#4CAF50' };
+            case 'promo': return { name: 'gift', color: '#FF9800' };
+            case 'warning': return { name: 'alert-circle', color: '#F44336' };
+            default: return { name: 'information-circle', color: '#2196F3' };
+        }
+    };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Notifications</Text>
+                <TouchableOpacity>
+                    <Text style={styles.markAllRead}>Mark all as read</Text>
+                </TouchableOpacity>
+            </View>
+
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF5722']} />}
             >
-                {bookings.map((booking) => (
-                    <BookingCard key={booking.id} booking={booking} />
-                ))}
+                {notifications.map((item) => {
+                    const icon = getIcon(item.type);
+                    return (
+                        <View key={item.id} style={[styles.notificationCard, !item.read && styles.unreadCard]}>
+                            <View style={[styles.iconContainer, { backgroundColor: `${icon.color}15` }]}>
+                                <Ionicons name={icon.name as any} size={24} color={icon.color} />
+                            </View>
+                            <View style={styles.contentContainer}>
+                                <View style={styles.cardHeader}>
+                                    <Text style={styles.title}>{item.title}</Text>
+                                    <Text style={styles.time}>{item.time}</Text>
+                                </View>
+                                <Text style={styles.message}>{item.message}</Text>
+                            </View>
+                            {!item.read && <View style={styles.unreadDot} />}
+                        </View>
+                    );
+                })}
+
+                <View style={styles.footer}>
+                    <Text style={styles.footerText}>That's all for now!</Text>
+                </View>
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: '#F5F5F5',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+        backgroundColor: COLORS.white,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    markAllRead: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#FF5722',
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        padding: SPACING.lg,
+        padding: SPACING.md,
     },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: SPACING.xl,
-    },
-    emptyEmoji: {
-        fontSize: 64,
-        marginBottom: SPACING.lg,
-    },
-    emptyTitle: {
-        ...TYPOGRAPHY.h2,
-        color: COLORS.textPrimary,
+    notificationCard: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.white,
+        padding: SPACING.md,
         marginBottom: SPACING.sm,
+        borderRadius: 12,
+        alignItems: 'flex-start',
+        borderWidth: 1,
+        borderColor: 'transparent',
     },
-    emptyText: {
-        ...TYPOGRAPHY.body,
-        color: COLORS.textSecondary,
-        textAlign: 'center',
+    unreadCard: {
+        borderColor: '#FF572220',
+        backgroundColor: '#FFFBF9',
+    },
+    iconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: SPACING.md,
+    },
+    contentContainer: {
+        flex: 1,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    title: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#333',
+        flex: 1,
+        marginRight: 8,
+    },
+    time: {
+        fontSize: 11,
+        color: '#999',
+    },
+    message: {
+        fontSize: 13,
+        color: '#666',
+        lineHeight: 18,
+    },
+    unreadDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#FF5722',
+        position: 'absolute',
+        top: SPACING.md,
+        right: SPACING.md,
+        // Removed marginTop since we act absolute
+    },
+    footer: {
+        paddingVertical: SPACING.lg,
+        alignItems: 'center',
+    },
+    footerText: {
+        fontSize: 12,
+        color: '#999',
     },
 });

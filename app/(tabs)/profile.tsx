@@ -6,8 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
-    SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getUserProfile } from '../../services/storage';
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Header with User Info */}
                 <View style={styles.header}>

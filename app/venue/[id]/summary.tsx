@@ -5,14 +5,17 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING } from '../../../utils/theme';
+import { useBookings } from '../../../context/BookingContext';
 
 export default function BookingSummaryScreen() {
     const params = useLocalSearchParams();
+    const { addBooking } = useBookings();
     const [insuranceChecked, setInsuranceChecked] = useState(true);
     const [termsChecked, setTermsChecked] = useState(false);
     const [couponExpanded, setCouponExpanded] = useState(false);
@@ -32,11 +35,30 @@ export default function BookingSummaryScreen() {
     const slotTotal = bookingData.basePrice + bookingData.convenienceFee;
     const payableAmount = slotTotal + (insuranceChecked ? bookingData.insurance : 0);
 
-    const handleProceedToPay = () => {
-        if (termsChecked) {
-            // Navigate to payment gateway
-            console.log('Proceeding to payment...');
-        }
+    const handleConfirmBooking = async () => {
+        if (!termsChecked) return;
+        const newBooking = {
+            id: Date.now().toString(),
+            turfName: 'Pitchnova Sports Arena',
+            location: 'Near Fire Brigade, Bhayandar West',
+            date: '18 Feb 2026',
+            slots: bookingData.slots,
+            sport: bookingData.sport,
+            totalAmount: payableAmount,
+            status: 'payment_pending' as const,
+            confirmedAt: new Date().toISOString(),
+        };
+        await addBooking(newBooking);
+        Alert.alert(
+            '✅ Booking Confirmed!',
+            'Your booking has been confirmed. Payment is pending — you can pay at the venue.',
+            [
+                {
+                    text: 'View Bookings',
+                    onPress: () => router.replace('/(tabs)/slots' as any),
+                },
+            ]
+        );
     };
 
     return (
@@ -193,10 +215,10 @@ export default function BookingSummaryScreen() {
                         styles.payButton,
                         !termsChecked && styles.payButtonDisabled
                     ]}
-                    onPress={handleProceedToPay}
+                    onPress={handleConfirmBooking}
                     disabled={!termsChecked}
                 >
-                    <Text style={styles.payButtonText}>PROCEED TO PAY</Text>
+                    <Text style={styles.payButtonText}>CONFIRM BOOKING</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -463,7 +485,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     payButton: {
-        backgroundColor: '#FF5722',
+        backgroundColor: '#4CAF50',
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 6,

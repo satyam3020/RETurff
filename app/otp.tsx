@@ -9,6 +9,7 @@ import {
     Platform,
     Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../utils/theme';
@@ -80,68 +81,74 @@ export default function OTPScreen() {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <StatusBar style="light" />
 
-            {/* Top Section - Orange Branding */}
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>{'<'}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.logoContainer}>
-                        <Text style={styles.logoIcon}>🏟️</Text>
-                        <Text style={styles.logoText}>RETurf</Text>
-                        <Text style={styles.tagline}>INDIA'S SPORTS APP</Text>
+                {/* Top Section - Orange Branding */}
+                <View style={styles.header}>
+                    <View style={styles.headerContent}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <Text style={styles.backButtonText}>{'<'}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.logoContainer}>
+                            <Text style={styles.logoIcon}>🏟️</Text>
+                            <Text style={styles.logoText}>RETurf</Text>
+                            <Text style={styles.tagline}>INDIA'S SPORTS APP</Text>
+                        </View>
                     </View>
                 </View>
-            </View>
 
-            {/* Bottom Section - White Card */}
-            <View style={styles.content}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.dragHandle} />
-                    <Text style={styles.title}>Enter OTP</Text>
-                    <Text style={styles.subtitle}>+91 {mobile}</Text>
+                {/* Bottom Section - White Card */}
+                <View style={styles.content}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.dragHandle} />
+                        <Text style={styles.title}>Enter OTP</Text>
+                        <Text style={styles.subtitle}>+91 {mobile}</Text>
+                    </View>
+
+                    <View style={styles.otpContainer}>
+                        {otp.map((digit, index) => (
+                            <TextInput
+                                key={index}
+                                ref={(ref: TextInput | null) => { inputRefs.current[index] = ref; }}
+                                style={[styles.otpInput, digit ? styles.otpInputFilled : null]}
+                                maxLength={1}
+                                keyboardType="number-pad"
+                                value={digit}
+                                onChangeText={(text) => handleChange(text, index)}
+                                onKeyPress={(e) => handleKeyPress(e, index)}
+                            />
+                        ))}
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={handleVerify}
+                    >
+                        <Text style={styles.buttonText}>VERIFY →</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.resendContainer}>
+                        <Text style={styles.retryText}>Didn't Receive OTP?</Text>
+                        <Text style={styles.timerText}>
+                            {timer > 0 ? `Resend in 00:${timer.toString().padStart(2, '0')}` : 'Resend Now'}
+                        </Text>
+                    </View>
                 </View>
-
-                <View style={styles.otpContainer}>
-                    {otp.map((digit, index) => (
-                        <TextInput
-                            key={index}
-                            ref={(ref: TextInput | null) => { inputRefs.current[index] = ref; }}
-                            style={[styles.otpInput, digit ? styles.otpInputFilled : null]}
-                            maxLength={1}
-                            keyboardType="number-pad"
-                            value={digit}
-                            onChangeText={(text) => handleChange(text, index)}
-                            onKeyPress={(e) => handleKeyPress(e, index)}
-                        />
-                    ))}
-                </View>
-
-                <TouchableOpacity
-                    style={styles.button}
-                    onPress={handleVerify}
-                >
-                    <Text style={styles.buttonText}>VERIFY →</Text>
-                </TouchableOpacity>
-
-                <View style={styles.resendContainer}>
-                    <Text style={styles.retryText}>Didn't Receive OTP?</Text>
-                    <Text style={styles.timerText}>
-                        {timer > 0 ? `Resend in 00:${timer.toString().padStart(2, '0')}` : 'Resend Now'}
-                    </Text>
-                </View>
-            </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#FF5722',
+    },
     container: {
         flex: 1,
         backgroundColor: '#FF5722',

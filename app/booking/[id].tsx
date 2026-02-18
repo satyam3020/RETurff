@@ -72,7 +72,7 @@ export default function BookingConfirmationScreen() {
 
         try {
             // Save user profile
-            const user: User = { name: userName, phone: userPhone };
+            const user: User = { name: userName, phone: userPhone, mobile: userPhone };
             await saveUserProfile(user);
 
             // Create booking
@@ -84,19 +84,19 @@ export default function BookingConfirmationScreen() {
                 endTime,
                 duration: 1,
                 totalPrice: parseFloat(price),
-                status: 'upcoming',
+                status: 'payment_pending',
                 userName,
                 userPhone,
             });
 
             if (response.success) {
                 Alert.alert(
-                    'Success!',
-                    SUCCESS_MESSAGES.BOOKING_CREATED,
+                    '✅ Booking Confirmed!',
+                    'Your slot has been booked successfully. Payment is pending — you can pay at the venue.',
                     [
                         {
                             text: 'View My Bookings',
-                            onPress: () => router.replace('/bookings'),
+                            onPress: () => router.replace('/(tabs)/slots'),
                         },
                     ]
                 );

@@ -37,21 +37,35 @@ export default function BookingSummaryScreen() {
 
     const handleConfirmBooking = async () => {
         if (!termsChecked) return;
+
+        // Build a booking that matches createUserBooking's expected shape
+        // so it appears in both "Your Bookings" and the admin Bookings panel
+        const firstSlot = bookingData.slots[0];
+        const lastSlot = bookingData.slots[bookingData.slots.length - 1];
+        const startTime = firstSlot?.time.split(' - ')[0] || '6:00 AM';
+        const endTime = lastSlot?.time.split(' - ')[1] || '7:00 AM';
+
         const newBooking = {
-            id: Date.now().toString(),
-            turfName: 'Pitchnova Sports Arena',
-            location: 'Near Fire Brigade, Bhayandar West',
+            venueId: 'venue_001',  // This summary screen is hardcoded to Pitchnova/venue_001
+            venueName: 'Pitchnova Sports Arena',
+            venueLocation: 'Near Fire Brigade, Bhayandar West',
             date: '18 Feb 2026',
-            slots: bookingData.slots,
+            startTime,
+            endTime,
             sport: bookingData.sport,
             totalAmount: payableAmount,
-            status: 'payment_pending' as const,
-            confirmedAt: new Date().toISOString(),
+            userName: 'You',
         };
-        await addBooking(newBooking);
+
+        const result = await addBooking(newBooking);
+        if (!result.success) {
+            Alert.alert('Error', result.message || 'Could not create booking');
+            return;
+        }
+
         Alert.alert(
             '✅ Booking Confirmed!',
-            'Your booking has been confirmed. Payment is pending — you can pay at the venue.',
+            'Your booking has been submitted. Status is Pending until admin confirms. You can pay at the venue.',
             [
                 {
                     text: 'View Bookings',
@@ -60,6 +74,7 @@ export default function BookingSummaryScreen() {
             ]
         );
     };
+
 
     return (
         <SafeAreaView style={styles.container}>

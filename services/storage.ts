@@ -1,55 +1,51 @@
-// AsyncStorage helpers for data persistence
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '../utils/constants';
-import type { User, Booking } from '../types';
 
-export async function saveUserProfile(user: User): Promise<boolean> {
+// Keys are prefixed to avoid collisions
+const KEYS = {
+    USER_PROFILE: '@user_profile', // Legacy — kept for backward compat
+};
+
+/**
+ * Legacy: Save user profile to AsyncStorage
+ * @deprecated Prefer userApi.updateProfile() which saves to MongoDB
+ */
+export const saveUserProfile = async (profile: {
+    name: string;
+    mobile: string;
+    [key: string]: any;
+}) => {
     try {
-        await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(user));
-        return true;
+        await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(profile));
     } catch (error) {
-        console.error('Failed to save user profile:', error);
-        return false;
+        console.error('saveUserProfile error:', error);
     }
-}
+};
 
-export async function getUserProfile(): Promise<User | null> {
+/**
+ * Legacy: Retrieve user profile from AsyncStorage
+ * @deprecated Prefer userApi.getProfile() which reads from MongoDB
+ */
+export const getUserProfile = async (): Promise<{ name: string; mobile: string;[key: string]: any } | null> => {
     try {
-        const data = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+        const data = await AsyncStorage.getItem(KEYS.USER_PROFILE);
         return data ? JSON.parse(data) : null;
     } catch (error) {
-        console.error('Failed to load user profile:', error);
+        console.error('getUserProfile error:', error);
         return null;
     }
-}
+};
 
-export async function saveBookings(bookings: Booking[]): Promise<boolean> {
+/**
+ * Legacy: Clear user profile (call after logout)
+ */
+export const clearUserProfile = async () => {
     try {
-        await AsyncStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(bookings));
-        return true;
+        await AsyncStorage.removeItem(KEYS.USER_PROFILE);
     } catch (error) {
-        console.error('Failed to save bookings:', error);
-        return false;
+        console.error('clearUserProfile error:', error);
     }
-}
+};
 
-export async function getBookings(): Promise<Booking[]> {
-    try {
-        const data = await AsyncStorage.getItem(STORAGE_KEYS.BOOKINGS);
-        return data ? JSON.parse(data) : [];
-    } catch (error) {
-        console.error('Failed to load bookings:', error);
-        return [];
-    }
-}
-
-export async function addBooking(booking: Booking): Promise<boolean> {
-    try {
-        const existingBookings = await getBookings();
-        const updatedBookings = [...existingBookings, booking];
-        return await saveBookings(updatedBookings);
-    } catch (error) {
-        console.error('Failed to add booking:', error);
-        return false;
-    }
-}
+// NOTE: Booking storage functions have been removed.
+// All booking data is now managed by the backend via userApi.createBooking()
+// and userApi.getMyBookings(). The BookingContext reads from the API.

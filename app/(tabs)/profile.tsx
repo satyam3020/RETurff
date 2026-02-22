@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getUserProfile } from '../../services/storage';
+import { clearAuthData } from '../../services/api';
 import { COLORS, SPACING } from '../../utils/theme';
 
 interface MenuItem {
@@ -56,9 +57,9 @@ export default function ProfileScreen() {
         }
     };
 
-    const handleLogout = () => {
-        // TODO: Implement logout logic
-        console.log('Logout pressed');
+    const handleLogout = async () => {
+        await clearAuthData();         // wipe token + user from AsyncStorage
+        router.replace('/login');      // go to login screen
     };
 
     return (

@@ -38,7 +38,8 @@ export default function BookingConfirmationScreen() {
                 setUserPhone(profile.phone);
             }
 
-            const turfResponse = await getTurfDetails();
+            const turfId = params.id as string || 'venue_001';
+            const turfResponse = await getTurfDetails(turfId);
             if (turfResponse.success && turfResponse.data) {
                 setTurf(turfResponse.data);
             }
@@ -75,16 +76,15 @@ export default function BookingConfirmationScreen() {
             const user: User = { name: userName, phone: userPhone, mobile: userPhone };
             await saveUserProfile(user);
 
-            // Create booking
+            // Create booking — uses the shared persistent store so admin panel sees it
             const response = await createBooking({
-                turfId: turf?.id || 'turf-001',
-                turfName: turf?.name || 'Green Valley Sports Arena',
+                venueId: turf?.id || 'venue_001',
+                venueName: turf?.name || 'Green Valley Sports Arena',
+                venueLocation: typeof turf?.location === 'string' ? turf.location : '',
                 date,
                 startTime,
                 endTime,
-                duration: 1,
-                totalPrice: parseFloat(price),
-                status: 'payment_pending',
+                totalAmount: parseFloat(price),
                 userName,
                 userPhone,
             });
@@ -101,7 +101,7 @@ export default function BookingConfirmationScreen() {
                     ]
                 );
             } else {
-                Alert.alert('Error', response.error || ERROR_MESSAGES.CREATE_BOOKING_ERROR);
+                Alert.alert('Error', (response as any).error || (response as any).message || ERROR_MESSAGES.CREATE_BOOKING_ERROR);
             }
         } catch (error) {
             Alert.alert('Error', ERROR_MESSAGES.CREATE_BOOKING_ERROR);

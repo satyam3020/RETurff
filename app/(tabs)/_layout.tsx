@@ -1,17 +1,20 @@
 // Tab layout - bottom navigation
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../utils/theme';
 
 export default function TabLayout() {
+    const insets = useSafeAreaInsets();
+
     return (
         <Tabs
             screenOptions={{
                 tabBarActiveTintColor: '#FF5722',
                 tabBarInactiveTintColor: '#999',
                 tabBarStyle: {
-                    height: 65,
-                    paddingBottom: 8,
+                    height: 58 + insets.bottom,   // dynamic — respects Android nav bar
+                    paddingBottom: insets.bottom + 6,
                     paddingTop: 8,
                     backgroundColor: COLORS.white,
                     borderTopWidth: 1,
@@ -22,7 +25,7 @@ export default function TabLayout() {
                     fontWeight: 'bold',
                     textTransform: 'uppercase',
                 },
-                headerShown: false, // We'll use a custom header in the screens
+                headerShown: false,
             }}
         >
             <Tabs.Screen

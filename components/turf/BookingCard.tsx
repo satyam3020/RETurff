@@ -11,13 +11,17 @@ interface BookingCardProps {
 }
 
 const STATUS_CONFIG: Record<BookingStatus, { color: string; label: string }> = {
-    upcoming: { color: COLORS.upcoming, label: 'Upcoming' },
-    completed: { color: COLORS.completed, label: 'Completed' },
-    cancelled: { color: COLORS.cancelled, label: 'Cancelled' },
+    upcoming: { color: COLORS.upcoming || '#4CAF50', label: 'Upcoming ✅' },
+    completed: { color: COLORS.completed || '#2196F3', label: 'Completed' },
+    cancelled: { color: COLORS.cancelled || '#9E9E9E', label: 'Cancelled' },
+    payment_pending: { color: '#FF9800', label: 'Payment Pending ⏳' },
+    pending: { color: '#FF9800', label: 'Pending' },
+    approved: { color: '#4CAF50', label: 'Approved ✅' },
+    rejected: { color: '#F44336', label: 'Rejected' },
 };
 
 export default function BookingCard({ booking }: BookingCardProps) {
-    const statusConfig = STATUS_CONFIG[booking.status];
+    const statusConfig = STATUS_CONFIG[booking.status] || { color: '#999', label: booking.status };
 
     return (
         <Card style={styles.card}>

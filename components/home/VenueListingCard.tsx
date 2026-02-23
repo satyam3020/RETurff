@@ -12,14 +12,28 @@ interface Venue {
     location: string;
     rating: number;
     reviews: number;
-    price: number;
+    pricePerHour?: number;
+    price?: number;         // legacy compat
     amenities: string[];
     images: string[];
+    sports?: { name: string }[];
 }
 
 export default function VenueListingCard({ venue }: { venue: Venue }) {
     const handlePress = () => {
         router.push(`/venue/${venue.id}` as any);
+    };
+
+    const imageUri = venue.images && venue.images.length > 0 ? venue.images[0] : null;
+    const priceLabel = venue.pricePerHour || venue.price;
+    const sportIcons: Record<string, string> = {
+        Football: '⚽',
+        Cricket: '🏏',
+        Badminton: '🏸',
+        Basketball: '🏀',
+        Hockey: '🏑',
+        Pickleball: '🎾',
+        General: '🏃',
     };
 
     return (
@@ -36,14 +50,34 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                 </View>
             </View>
 
-            {/* Image Slider Mockup */}
+            {/* Image or Placeholder */}
             <View style={styles.imageContainer}>
-                <Image source={{ uri: venue.images[0] }} style={styles.image} />
+                {imageUri ? (
+                    <Image
+                        source={{ uri: imageUri }}
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View style={styles.imagePlaceholder}>
+                        <Text style={styles.placeholderInitial}>
+                            {venue.name.charAt(0)}
+                        </Text>
+                        <Text style={styles.placeholderName}>{venue.name}</Text>
+                    </View>
+                )}
 
                 {/* Discount Badge */}
                 <View style={styles.discountBadge}>
                     <Text style={styles.discountText}>20% OFF</Text>
                 </View>
+
+                {/* Price Badge */}
+                {priceLabel ? (
+                    <View style={styles.priceBadge}>
+                        <Text style={styles.priceText}>₹{priceLabel}/hr</Text>
+                    </View>
+                ) : null}
 
                 <View style={styles.pagination}>
                     <View style={[styles.dot, styles.dotActive]} />
@@ -52,7 +86,7 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                 </View>
             </View>
 
-            {/* Footer Amenities & Booking */}
+            {/* Footer Amenities & Sports */}
             <View style={styles.footer}>
                 <View style={styles.amenities}>
                     <MaterialCommunityIcons name="information" size={16} color="#03A9F4" />
@@ -61,9 +95,11 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                     </Text>
                 </View>
                 <View style={styles.sportIcons}>
-                    {/* Mock icons for sports */}
-                    <View style={styles.sportCircle}><Text style={{ fontSize: 10 }}>⚽</Text></View>
-                    <View style={styles.sportCircle}><Text style={{ fontSize: 10 }}>🏸</Text></View>
+                    {(venue.sports || []).slice(0, 3).map((s, i) => (
+                        <View key={i} style={styles.sportCircle}>
+                            <Text style={{ fontSize: 10 }}>{sportIcons[s.name] || '🏃'}</Text>
+                        </View>
+                    ))}
                 </View>
             </View>
         </TouchableOpacity>
@@ -106,11 +142,6 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 4,
     },
-    starText: {
-        fontSize: 10,
-        marginRight: 4,
-        color: '#4CAF50',
-    },
     ratingText: {
         fontSize: 12,
         fontWeight: 'bold',
@@ -132,6 +163,24 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
+    imagePlaceholder: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#1a1a2e',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    placeholderInitial: {
+        fontSize: 60,
+        fontWeight: 'bold',
+        color: 'rgba(255,87,34,0.8)',
+    },
+    placeholderName: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.7)',
+        marginTop: 8,
+        fontWeight: '600',
+    },
     discountBadge: {
         position: 'absolute',
         top: 12,
@@ -144,6 +193,20 @@ const styles = StyleSheet.create({
     discountText: {
         color: COLORS.white,
         fontSize: 11,
+        fontWeight: 'bold',
+    },
+    priceBadge: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        backgroundColor: 'rgba(0,0,0,0.65)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 6,
+    },
+    priceText: {
+        color: COLORS.white,
+        fontSize: 12,
         fontWeight: 'bold',
     },
     pagination: {
@@ -173,15 +236,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    amenityIcon: {
-        fontSize: 16,
-        marginRight: 8,
-        color: '#03A9F4',
-    },
     amenityText: {
         fontSize: 11,
         color: '#666',
         fontWeight: '500',
+        marginLeft: 6,
     },
     sportIcons: {
         flexDirection: 'row',

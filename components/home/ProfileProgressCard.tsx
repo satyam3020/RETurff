@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
 import ProfileCompletionModal from '../profile/ProfileCompletionModal';
+import { getAuthUser } from '../../services/api';
 
 export default function ProfileProgressCard() {
     const [modalVisible, setModalVisible] = useState(false);
+    const [userName, setUserName] = useState('');
+
+    useEffect(() => {
+        getAuthUser().then((user) => {
+            if (user?.name) setUserName(user.name);
+        });
+    }, []);
 
     return (
         <>
@@ -37,7 +45,6 @@ export default function ProfileProgressCard() {
                             style={styles.closeBtn}
                             onPress={(e) => {
                                 e.stopPropagation();
-                                // Handle close
                             }}
                         >
                             <MaterialCommunityIcons name="close" size={12} color="#999" />
@@ -49,6 +56,7 @@ export default function ProfileProgressCard() {
             <ProfileCompletionModal
                 visible={modalVisible}
                 onClose={() => setModalVisible(false)}
+                userName={userName}
             />
         </>
     );

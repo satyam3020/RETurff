@@ -29,7 +29,7 @@ interface ProfileCompletionModalProps {
 export default function ProfileCompletionModal({
     visible,
     onClose,
-    userName = 'Suraj',
+    userName = '',
 }: ProfileCompletionModalProps) {
     const [tasks, setTasks] = useState<ProfileTask[]>([
         {

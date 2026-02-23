@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
-    ScrollView,
+    View, Text, StyleSheet, TouchableOpacity, TextInput,
+    KeyboardAvoidingView, Platform, Alert, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -17,56 +10,68 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../utils/theme';
 import { saveAuthData } from '../services/api';
 import { mockAdminLogin } from '../services/adminMockApi';
+import { loginUser } from '../services/authStore';
 
 type Role = 'user' | 'admin';
 
 export default function LoginScreen() {
     const [role, setRole] = useState<Role>('user');
 
-    // User (OTP) state
-    const [mobileNumber, setMobileNumber] = useState('');
+    // ── User state ──────────────────────────────────────
+    const [phone, setPhone] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
-    // Admin (password) state
+    // ── Admin state ─────────────────────────────────────
     const [adminPhone, setAdminPhone] = useState('');
     const [adminPassword, setAdminPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
+    const [showAdminPassword, setShowAdminPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
 
-    // ─── User: Send OTP ───────────────────────────────
-    const handleSendOTP = () => {
-        if (mobileNumber.length !== 10) {
-            Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number.');
-            return;
+    // ── User Login ───────────────────────────────────────
+    const handleUserLogin = async () => {
+        if (phone.length !== 10) {
+            Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number.'); return;
+        }
+        if (password.length < 6) {
+            Alert.alert('Invalid Password', 'Password must be at least 6 characters.'); return;
         }
         setLoading(true);
-        setTimeout(() => {
+        try {
+            const res = await loginUser(phone, password);
+            if (!res.success || !res.user) {
+                Alert.alert('Login Failed', res.message || 'Incorrect phone or password.');
+                return;
+            }
+            await saveAuthData(`mock_token_${res.user._id}`, {
+                _id: res.user._id,
+                name: res.user.name,
+                phone: res.user.phone,
+                email: res.user.email,
+            });
+            router.replace('/(tabs)');
+        } catch (e: any) {
+            Alert.alert('Error', 'Login failed. Please try again.');
+        } finally {
             setLoading(false);
-            router.push({ pathname: '/otp', params: { mobile: mobileNumber } });
-        }, 1000);
+        }
     };
 
-    // ─── Admin: Login with password ───────────────────
+    // ── Admin Login ──────────────────────────────────────
     const handleAdminLogin = async () => {
         if (adminPhone.length !== 10) {
-            Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number.');
-            return;
+            Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number.'); return;
         }
         if (adminPassword.length < 6) {
-            Alert.alert('Invalid Password', 'Password must be at least 6 characters.');
-            return;
+            Alert.alert('Invalid Password', 'Password must be at least 6 characters.'); return;
         }
-
         setLoading(true);
         try {
             const res = await mockAdminLogin(adminPhone, adminPassword);
-
             if (!res.success) {
-                Alert.alert('Login Failed', res.message || 'Invalid credentials.');
-                return;
+                Alert.alert('Login Failed', res.message || 'Invalid credentials.'); return;
             }
-
-            // Save mock token + user so the admin layout guard passes
             await saveAuthData(res.token!, res.user);
             router.replace('/(admin)/dashboard');
         } catch (e: any) {
@@ -97,47 +102,33 @@ export default function LoginScreen() {
                 <View style={styles.content}>
                     <View style={styles.dragHandle} />
 
-                    {/* ── Role Selector ─────────────────── */}
+                    {/* ── Role Tabs ─────────────────────── */}
                     <View style={styles.roleContainer}>
                         <TouchableOpacity
                             style={[styles.roleTab, role === 'user' && styles.roleTabActive]}
-                            onPress={() => setRole('user')}
-                            activeOpacity={0.8}
+                            onPress={() => setRole('user')} activeOpacity={0.8}
                         >
-                            <Ionicons
-                                name="person"
-                                size={16}
-                                color={role === 'user' ? '#fff' : '#888'}
-                            />
-                            <Text style={[styles.roleTabText, role === 'user' && styles.roleTabTextActive]}>
-                                User
-                            </Text>
+                            <Ionicons name="person" size={16} color={role === 'user' ? '#fff' : '#888'} />
+                            <Text style={[styles.roleTabText, role === 'user' && styles.roleTabTextActive]}>User</Text>
                         </TouchableOpacity>
-
                         <TouchableOpacity
                             style={[styles.roleTab, role === 'admin' && styles.roleTabActiveAdmin]}
-                            onPress={() => setRole('admin')}
-                            activeOpacity={0.8}
+                            onPress={() => setRole('admin')} activeOpacity={0.8}
                         >
-                            <Ionicons
-                                name="shield-checkmark"
-                                size={16}
-                                color={role === 'admin' ? '#fff' : '#888'}
-                            />
-                            <Text style={[styles.roleTabText, role === 'admin' && styles.roleTabTextActive]}>
-                                Admin
-                            </Text>
+                            <Ionicons name="shield-checkmark" size={16} color={role === 'admin' ? '#fff' : '#888'} />
+                            <Text style={[styles.roleTabText, role === 'admin' && styles.roleTabTextActive]}>Admin</Text>
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                         {role === 'user' ? (
-                            /* ── USER FORM ── OTP-based ─────────────── */
+                            /* ── USER FORM — Phone + Password ─────────── */
                             <>
-                                <Text style={styles.title}>Let's sign you in!</Text>
-                                <Text style={styles.subtitle}>Enter your mobile number to receive an OTP</Text>
+                                <Text style={styles.title}>Welcome back! 👋</Text>
+                                <Text style={styles.subtitle}>Sign in with your phone number and password</Text>
 
+                                {/* Phone */}
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>Mobile Number</Text>
                                     <View style={styles.inputRow}>
@@ -149,31 +140,73 @@ export default function LoginScreen() {
                                             placeholder="9000000000"
                                             keyboardType="number-pad"
                                             maxLength={10}
-                                            value={mobileNumber}
-                                            onChangeText={setMobileNumber}
+                                            value={phone}
+                                            onChangeText={setPhone}
                                             placeholderTextColor={COLORS.gray400}
                                         />
                                     </View>
-                                    <Text style={styles.helperText}>
-                                        A 4-digit code will be sent to your mobile number
-                                    </Text>
                                 </View>
 
+                                {/* Password */}
+                                <View style={styles.inputGroup}>
+                                    <View style={styles.labelRow}>
+                                        <Text style={styles.label}>Password</Text>
+                                        <TouchableOpacity onPress={() => router.push('/forgot-password' as any)}>
+                                            <Text style={styles.forgotText}>Forgot Password?</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <View style={styles.passwordRow}>
+                                        <TextInput
+                                            style={[styles.input, { flex: 1, borderRightWidth: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
+                                            placeholder="••••••••"
+                                            secureTextEntry={!showPassword}
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            placeholderTextColor={COLORS.gray400}
+                                            autoCapitalize="none"
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.eyeBtn}
+                                            onPress={() => setShowPassword(p => !p)}
+                                        >
+                                            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                {/* Login Button */}
                                 <TouchableOpacity
                                     style={[styles.button, loading && styles.buttonDisabled]}
-                                    onPress={handleSendOTP}
+                                    onPress={handleUserLogin}
                                     disabled={loading}
                                 >
-                                    <Text style={styles.buttonText}>{loading ? 'SENDING...' : 'SEND OTP'}</Text>
+                                    <Ionicons name="log-in-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                    <Text style={styles.buttonText}>{loading ? 'SIGNING IN...' : 'SIGN IN'}</Text>
+                                </TouchableOpacity>
+
+                                {/* Divider */}
+                                <View style={styles.divider}>
+                                    <View style={styles.dividerLine} />
+                                    <Text style={styles.dividerText}>OR</Text>
+                                    <View style={styles.dividerLine} />
+                                </View>
+
+                                {/* Sign Up Link */}
+                                <TouchableOpacity
+                                    style={styles.signupButton}
+                                    onPress={() => router.push('/signup' as any)}
+                                >
+                                    <Ionicons name="person-add-outline" size={18} color="#FF5722" style={{ marginRight: 6 }} />
+                                    <Text style={styles.signupButtonText}>CREATE NEW ACCOUNT</Text>
                                 </TouchableOpacity>
 
                                 <Text style={styles.termsText}>
-                                    By tapping 'Send OTP', you agree to RETurf's{' '}
+                                    By signing in, you agree to RETurf's{' '}
                                     <Text style={styles.linkText}>Terms & Conditions</Text>
                                 </Text>
                             </>
                         ) : (
-                            /* ── ADMIN FORM ── Password-based ───────── */
+                            /* ── ADMIN FORM — Password-based ───────── */
                             <>
                                 <Text style={styles.title}>Admin Login</Text>
                                 <Text style={styles.subtitle}>Sign in with your admin credentials</Text>
@@ -183,7 +216,6 @@ export default function LoginScreen() {
                                     <Text style={styles.adminBannerText}>Secure Admin Access</Text>
                                 </View>
 
-                                {/* Mock credentials hint */}
                                 <View style={styles.hintBox}>
                                     <Ionicons name="key-outline" size={14} color="#f59e0b" />
                                     <Text style={styles.hintText}>
@@ -194,6 +226,7 @@ export default function LoginScreen() {
                                     </Text>
                                 </View>
 
+                                {/* Admin Phone */}
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>Phone Number</Text>
                                     <View style={styles.inputRow}>
@@ -202,7 +235,7 @@ export default function LoginScreen() {
                                         </View>
                                         <TextInput
                                             style={styles.input}
-                                            placeholder="9000000000"
+                                            placeholder="9999999999"
                                             keyboardType="number-pad"
                                             maxLength={10}
                                             value={adminPhone}
@@ -212,13 +245,14 @@ export default function LoginScreen() {
                                     </View>
                                 </View>
 
+                                {/* Admin Password */}
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>Password</Text>
                                     <View style={styles.passwordRow}>
                                         <TextInput
                                             style={[styles.input, { flex: 1, borderRightWidth: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
                                             placeholder="••••••••"
-                                            secureTextEntry={!showPassword}
+                                            secureTextEntry={!showAdminPassword}
                                             value={adminPassword}
                                             onChangeText={setAdminPassword}
                                             placeholderTextColor={COLORS.gray400}
@@ -226,13 +260,9 @@ export default function LoginScreen() {
                                         />
                                         <TouchableOpacity
                                             style={styles.eyeBtn}
-                                            onPress={() => setShowPassword((p) => !p)}
+                                            onPress={() => setShowAdminPassword(p => !p)}
                                         >
-                                            <Ionicons
-                                                name={showPassword ? 'eye-off' : 'eye'}
-                                                size={20}
-                                                color="#888"
-                                            />
+                                            <Ionicons name={showAdminPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -262,49 +292,33 @@ const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#FF5722' },
     container: { flex: 1, backgroundColor: '#FF5722' },
 
-    // ── Header ──────────────────────────────────────────
     header: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative',
-        overflow: 'hidden',
+        flex: 0.9, justifyContent: 'center', alignItems: 'center',
+        position: 'relative', overflow: 'hidden',
     },
     circleDecoration: {
-        position: 'absolute',
-        width: 400,
-        height: 400,
-        borderRadius: 200,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        top: -100,
-        right: -100,
+        position: 'absolute', width: 400, height: 400, borderRadius: 200,
+        backgroundColor: 'rgba(255,255,255,0.1)', top: -100, right: -100,
     },
     logoContainer: { alignItems: 'center', zIndex: 10 },
     logoIcon: { fontSize: 48, marginBottom: SPACING.sm, color: COLORS.white },
     logoText: { fontSize: 40, fontWeight: 'bold', color: COLORS.white, letterSpacing: 1 },
     tagline: { fontSize: 14, color: 'rgba(255,255,255,0.9)', letterSpacing: 4, marginTop: SPACING.xs, fontWeight: '600' },
 
-    // ── White Card ──────────────────────────────────────
     content: {
         backgroundColor: COLORS.white,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: SPACING.xl,
-        paddingBottom: SPACING.xxl * 2,
-        flex: 0.85,
+        borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        padding: SPACING.xl, paddingBottom: SPACING.xxl * 2,
+        flex: 1.6,
     },
     dragHandle: {
         width: 40, height: 4, backgroundColor: COLORS.gray200,
         borderRadius: 2, alignSelf: 'center', marginBottom: SPACING.lg,
     },
 
-    // ── Role Tabs ───────────────────────────────────────
     roleContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#f0f0f0',
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: SPACING.xl,
+        flexDirection: 'row', backgroundColor: '#f0f0f0',
+        borderRadius: 12, padding: 4, marginBottom: SPACING.xl,
     },
     roleTab: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -315,7 +329,6 @@ const styles = StyleSheet.create({
     roleTabText: { fontSize: 14, fontWeight: '600', color: '#888' },
     roleTabTextActive: { color: '#fff' },
 
-    // ── Form ────────────────────────────────────────────
     title: { fontSize: 20, fontWeight: 'bold', color: COLORS.textPrimary, marginBottom: SPACING.xs },
     subtitle: { fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.lg, lineHeight: 18 },
 
@@ -326,7 +339,9 @@ const styles = StyleSheet.create({
     adminBannerText: { fontSize: 13, fontWeight: '600', color: '#1a1a2e' },
 
     inputGroup: { marginBottom: SPACING.md },
-    label: { fontSize: 14, color: COLORS.textSecondary, marginBottom: SPACING.xs, fontWeight: '500' },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs },
+    label: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
+    forgotText: { fontSize: 13, color: '#FF5722', fontWeight: '600' },
 
     inputRow: { flexDirection: 'row', borderWidth: 1, borderColor: COLORS.gray300, borderRadius: BORDER_RADIUS.md, overflow: 'hidden' },
     countryCode: {
@@ -334,10 +349,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#f9f9f9', borderRightWidth: 1, borderRightColor: COLORS.gray300,
     },
     ccText: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary },
-    input: {
-        flex: 1, padding: SPACING.md,
-        fontSize: 16, fontWeight: '600', color: COLORS.textPrimary,
-    },
+    input: { flex: 1, padding: SPACING.md, fontSize: 16, fontWeight: '600', color: COLORS.textPrimary },
 
     passwordRow: { flexDirection: 'row', borderWidth: 1, borderColor: COLORS.gray300, borderRadius: BORDER_RADIUS.md, overflow: 'hidden' },
     eyeBtn: {
@@ -345,16 +357,26 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9f9f9',
     },
 
-    helperText: { fontSize: 12, color: COLORS.textSecondary, marginTop: SPACING.sm, lineHeight: 18 },
-
     button: {
         backgroundColor: '#FF5722', paddingVertical: SPACING.md, borderRadius: BORDER_RADIUS.md,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         marginTop: SPACING.sm, marginBottom: SPACING.lg,
+        shadowColor: '#FF5722', shadowOpacity: 0.3, shadowRadius: 8, elevation: 3,
     },
     adminButton: { backgroundColor: '#1a1a2e' },
     buttonDisabled: { opacity: 0.65 },
     buttonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
+
+    divider: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
+    dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.gray200 },
+    dividerText: { fontSize: 12, color: COLORS.textSecondary, marginHorizontal: SPACING.md, fontWeight: '600' },
+
+    signupButton: {
+        borderWidth: 2, borderColor: '#FF5722', borderRadius: BORDER_RADIUS.md,
+        paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        marginBottom: SPACING.lg,
+    },
+    signupButtonText: { color: '#FF5722', fontSize: 15, fontWeight: 'bold', letterSpacing: 1 },
 
     termsText: { textAlign: 'center', fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
     linkText: { color: '#FF5722', fontWeight: 'bold' },

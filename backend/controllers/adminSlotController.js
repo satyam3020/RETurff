@@ -28,11 +28,11 @@ const getSlots = async (req, res, next) => {
 /**
  * POST /api/admin/slots/bulk-generate
  * Generates hourly slots from venue operating hours for a given date
- * Body: { venueId, date, price }
+ * Body: { venueId, date, price, sport?, surface? }
  */
 const bulkGenerateSlots = async (req, res, next) => {
     try {
-        const { venueId, date, price } = req.body;
+        const { venueId, date, price, sport, surface } = req.body;
 
         if (!venueId || !date || !price) {
             return res.status(400).json({ success: false, message: 'venueId, date, and price are required' });
@@ -53,14 +53,25 @@ const bulkGenerateSlots = async (req, res, next) => {
                 price: Number(price),
                 isAvailable: true,
                 isBlocked: false,
+                sport: sport || null,
+                surface: surface || null,
             });
         }
 
         // insertMany with ordered:false skips duplicates (unique index)
-        const result = await Slot.insertMany(slotsToCreate, { ordered: false }).catch((err) => {
-            if (err.code === 11000) return { insertedCount: err.result?.nInserted || 0 };
+        const inserted = await Slot.insertMany(slotsToCreate, { ordered: false }).catch((err) => {
+            if (err.code === 11000) {
+                return null; // all were duplicates
+            }
             throw err;
         });
+
+        if (!inserted) {
+            return res.status(409).json({
+                success: false,
+                message: `Slots for ${sport || 'this sport'} – ${surface || ''} on ${date} already exist.`,
+            });
+        }
 
         res.status(201).json({
             success: true,

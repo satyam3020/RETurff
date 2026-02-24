@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getUserBookings, createBooking as mockCreateBooking } from '../services/api';
-import { getAuthUser } from '../services/api';
+import { getUserBookings, createBooking as apiCreateBooking, getAuthUser } from '../services/api';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 export interface ConfirmedBooking {
@@ -37,16 +36,16 @@ export const useBookings = () => {
     return ctx;
 };
 
-// Normalize a raw booking from the shared store to ConfirmedBooking shape
+// Normalize a raw booking from the backend to ConfirmedBooking shape
 const normalizeBooking = (b: any): ConfirmedBooking => ({
     ...b,
     _id: b._id || b.id || `bk_${Math.random()}`,
     id: b._id || b.id,
-    venueName: b.venueName || b.turfName || 'Unknown Venue',
-    turfName: b.venueName || b.turfName || 'Unknown Venue', // legacy alias
+    venueName: b.venueName || (b.venueId?.name) || b.turfName || 'Unknown Venue',
+    turfName: b.venueName || (b.venueId?.name) || b.turfName || 'Unknown Venue', // legacy alias
+    venueLocation: b.venueLocation || (b.venueId?.location?.address) || '',
     startTime: b.startTime || '',
     endTime: b.endTime || '',
-    // Provide a slots array compatible with the old UI (legacy slots screen)
     slots: b.slots || [{ time: `${b.startTime || ''} - ${b.endTime || ''}` }],
     totalAmount: b.totalAmount || 0,
     status: b.status || 'pending',
@@ -61,10 +60,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     const refreshBookings = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Try to get user id for filtering; fallback to all bookings in demo mode
-            const user = await getAuthUser().catch(() => null);
-            const userId = user?._id;
-            const res = await getUserBookings(userId);
+            const res = await getUserBookings();
             if (res.success && Array.isArray(res.data)) {
                 setBookings(res.data.map(normalizeBooking));
             }
@@ -80,13 +76,13 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
 
     const addBooking = async (bookingData: any): Promise<{ success: boolean; data?: ConfirmedBooking; message?: string }> => {
         try {
-            const res = await mockCreateBooking(bookingData);
+            const res = await apiCreateBooking(bookingData);
             if (res.success && res.data) {
                 const normalized = normalizeBooking(res.data);
                 setBookings((prev) => [normalized, ...prev]);
                 return { success: true, data: normalized };
             }
-            return { success: false, message: 'Booking failed' };
+            return { success: false, message: res.message || 'Booking failed' };
         } catch (error: any) {
             return { success: false, message: error.message || 'Failed to create booking' };
         }

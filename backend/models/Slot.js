@@ -45,7 +45,7 @@ const slotSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// Compound index to prevent duplicate slots for same venue/date/time
-slotSchema.index({ venueId: 1, date: 1, startTime: 1 }, { unique: true });
+// Compound index to prevent duplicate slots for same venue/date/time/sport/surface
+slotSchema.index({ venueId: 1, date: 1, startTime: 1, sport: 1, surface: 1 }, { unique: true });
 
 module.exports = mongoose.model('Slot', slotSchema);

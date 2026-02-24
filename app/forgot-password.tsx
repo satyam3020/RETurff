@@ -8,10 +8,13 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../utils/theme';
-import { getUserByEmail, updateUserPassword } from '../services/authStore';
 
-// Mock reset code — in production this is emailed via SendGrid/SES
-const MOCK_RESET_CODE = '123456';
+// Password reset via email OTP is not yet available.
+// Backend requires email/SMS provider integration (SendGrid / Twilio).
+// This screen shows a placeholder until that is set up.
+
+const BACKEND_RESET_AVAILABLE = false;
+
 
 type Step = 'email' | 'reset';
 
@@ -28,52 +31,19 @@ export default function ForgotPasswordScreen() {
 
     // ── Step 1: Send reset code ───────────────────────────
     const handleSendCode = async () => {
-        if (!email.trim() || !email.includes('@')) {
-            Alert.alert('Invalid Email', 'Please enter a valid email address.'); return;
-        }
-        setLoading(true);
-        try {
-            const user = await getUserByEmail(email.trim());
-            if (!user) {
-                Alert.alert('Not Found', 'No account is registered with this email address.');
-                return;
-            }
-            setFoundEmail(email.trim().toLowerCase());
+        if (!BACKEND_RESET_AVAILABLE) {
             Alert.alert(
-                '📧 Reset Code Sent!',
-                `A reset code has been sent to ${email}.\n\nYour code: ${MOCK_RESET_CODE}\n\n(In production, this arrives in your inbox.)`,
-                [{ text: 'Enter Code', onPress: () => setStep('reset') }]
+                '🚧 Coming Soon',
+                'Password reset via email is not yet available.\n\nPlease contact support or create a new account.',
+                [{ text: 'OK' }]
             );
-        } finally {
-            setLoading(false);
+            return;
         }
     };
 
     // ── Step 2: Verify code & set new password ────────────
     const handleReset = async () => {
-        if (resetCode !== MOCK_RESET_CODE) {
-            Alert.alert('Wrong Code', 'The reset code you entered is incorrect.'); return;
-        }
-        if (newPassword.length < 6) {
-            Alert.alert('Weak Password', 'New password must be at least 6 characters.'); return;
-        }
-        if (newPassword !== confirmPassword) {
-            Alert.alert('Mismatch', 'Passwords do not match.'); return;
-        }
-        setLoading(true);
-        try {
-            const res = await updateUserPassword(foundEmail, newPassword);
-            if (!res.success) {
-                Alert.alert('Error', res.message || 'Could not update password.'); return;
-            }
-            Alert.alert(
-                '✅ Password Updated!',
-                'Your password has been changed successfully. Please login with your new password.',
-                [{ text: 'Go to Login', onPress: () => router.replace('/login') }]
-            );
-        } finally {
-            setLoading(false);
-        }
+        if (!BACKEND_RESET_AVAILABLE) return;
     };
 
     return (

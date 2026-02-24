@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { isMockAdminToken } from '../../services/adminMockApi';
-import { clearAuthData } from '../../services/api';
+import { getAuthUser, clearAuthData } from '../../services/api';
 
 export default function AdminLayout() {
     const [checking, setChecking] = useState(true);
@@ -14,8 +13,8 @@ export default function AdminLayout() {
 
     const checkAdminAccess = async () => {
         try {
-            const valid = await isMockAdminToken();
-            if (!valid) { router.replace('/login'); return; }
+            const user = await getAuthUser();
+            if (!user || user.role !== 'admin') { router.replace('/login'); return; }
             setIsAdmin(true);
         } catch { router.replace('/login'); }
         finally { setChecking(false); }

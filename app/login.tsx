@@ -8,9 +8,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../utils/theme';
-import { saveAuthData } from '../services/api';
-import { mockAdminLogin } from '../services/adminMockApi';
-import { loginUser } from '../services/authStore';
+import { saveAuthData, authApi } from '../services/api';
 
 type Role = 'user' | 'admin';
 
@@ -39,20 +37,19 @@ export default function LoginScreen() {
         }
         setLoading(true);
         try {
-            const res = await loginUser(phone, password);
-            if (!res.success || !res.user) {
+            const res = await authApi.login({ phone, password });
+            if (!res.success || !res.token || !res.user) {
                 Alert.alert('Login Failed', res.message || 'Incorrect phone or password.');
                 return;
             }
-            await saveAuthData(`mock_token_${res.user._id}`, {
-                _id: res.user._id,
-                name: res.user.name,
-                phone: res.user.phone,
-                email: res.user.email,
-            });
+            if (res.user.role === 'admin') {
+                Alert.alert('Login Failed', 'Please use the Admin tab to sign in as admin.');
+                return;
+            }
+            await saveAuthData(res.token, res.user);
             router.replace('/(tabs)');
         } catch (e: any) {
-            Alert.alert('Error', 'Login failed. Please try again.');
+            Alert.alert('Error', 'Login failed. Please check your network and try again.');
         } finally {
             setLoading(false);
         }
@@ -68,14 +65,17 @@ export default function LoginScreen() {
         }
         setLoading(true);
         try {
-            const res = await mockAdminLogin(adminPhone, adminPassword);
-            if (!res.success) {
+            const res = await authApi.login({ phone: adminPhone, password: adminPassword });
+            if (!res.success || !res.token || !res.user) {
                 Alert.alert('Login Failed', res.message || 'Invalid credentials.'); return;
             }
-            await saveAuthData(res.token!, res.user);
+            if (res.user.role !== 'admin') {
+                Alert.alert('Access Denied', 'This account does not have admin privileges.'); return;
+            }
+            await saveAuthData(res.token, res.user);
             router.replace('/(admin)/dashboard');
         } catch (e: any) {
-            Alert.alert('Error', 'Login failed. Please try again.');
+            Alert.alert('Error', 'Login failed. Please check your network and try again.');
         } finally {
             setLoading(false);
         }
@@ -216,15 +216,6 @@ export default function LoginScreen() {
                                     <Text style={styles.adminBannerText}>Secure Admin Access</Text>
                                 </View>
 
-                                <View style={styles.hintBox}>
-                                    <Ionicons name="key-outline" size={14} color="#f59e0b" />
-                                    <Text style={styles.hintText}>
-                                        Demo credentials:{' '}
-                                        <Text style={styles.hintBold}>9999999999</Text>
-                                        {' / '}
-                                        <Text style={styles.hintBold}>admin123</Text>
-                                    </Text>
-                                </View>
 
                                 {/* Admin Phone */}
                                 <View style={styles.inputGroup}>
@@ -380,11 +371,4 @@ const styles = StyleSheet.create({
 
     termsText: { textAlign: 'center', fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
     linkText: { color: '#FF5722', fontWeight: 'bold' },
-    hintBox: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: '#fef9e7', borderRadius: 8, padding: 10,
-        marginBottom: SPACING.md, borderWidth: 1, borderColor: '#f59e0b40',
-    },
-    hintText: { fontSize: 12, color: '#666', flex: 1 },
-    hintBold: { fontWeight: 'bold', color: '#1a1a2e' },
 });

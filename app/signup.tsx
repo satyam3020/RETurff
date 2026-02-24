@@ -8,8 +8,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../utils/theme';
-import { registerUser } from '../services/authStore';
-import { saveAuthData } from '../services/api';
+import { saveAuthData, authApi } from '../services/api';
 
 export default function SignupScreen() {
     const [name, setName] = useState('');
@@ -44,21 +43,15 @@ export default function SignupScreen() {
         if (!validate()) return;
         setLoading(true);
         try {
-            const res = await registerUser({ name: name.trim(), phone, email, password });
-            if (!res.success || !res.user) {
+            const res = await authApi.register({ name: name.trim(), phone, password });
+            if (!res.success || !res.token || !res.user) {
                 Alert.alert('Registration Failed', res.message || 'Could not create account.');
                 return;
             }
-            // Persist auth session
-            await saveAuthData(`mock_token_${res.user._id}`, {
-                _id: res.user._id,
-                name: res.user.name,
-                phone: res.user.phone,
-                email: res.user.email,
-            });
+            await saveAuthData(res.token, res.user);
             router.replace('/(tabs)');
         } catch (e: any) {
-            Alert.alert('Error', 'Something went wrong. Please try again.');
+            Alert.alert('Error', 'Something went wrong. Please check your network and try again.');
         } finally {
             setLoading(false);
         }

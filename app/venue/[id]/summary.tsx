@@ -20,46 +20,45 @@ export default function BookingSummaryScreen() {
     const [termsChecked, setTermsChecked] = useState(false);
     const [couponExpanded, setCouponExpanded] = useState(false);
 
-    // Mock booking data
-    const bookingData = {
-        slots: [
-            { time: '6:00 - 6:30', surface: '8 layered Acrylic Surface (Full ...', court: 'Pickleball Court 2', price: 200 },
-            { time: '6:30 - 7:00', surface: '8 layered Acrylic Surface (Full ...', court: 'Pickleball Court 2', price: 200 },
-        ],
-        sport: 'Pickleball',
-        basePrice: 400,
-        convenienceFee: 12,
-        insurance: 10,
-    };
+    // ── Extract real params passed from the booking screen ──
+    const venueId = (params.venueId as string) || '';
+    const venueName = (params.venueName as string) || 'Unknown Venue';
+    const venueLocation = (params.venueLocation as string) || '';
+    const slotId = (params.slotId as string) || '';
+    const date = (params.date as string) || '';
+    const startTime = (params.startTime as string) || '';
+    const endTime = (params.endTime as string) || '';
+    const sport = (params.sport as string) || 'General';
+    const surface = (params.surface as string) || '';
+    const pricePerHour = Number(params.price) || 0;
 
-    const slotTotal = bookingData.basePrice + bookingData.convenienceFee;
-    const payableAmount = slotTotal + (insuranceChecked ? bookingData.insurance : 0);
+    const convenienceFee = Math.round(pricePerHour * 0.03); // 3% convenience fee
+    const insurance = 10;
+    const slotTotal = pricePerHour + convenienceFee;
+    const payableAmount = slotTotal + (insuranceChecked ? insurance : 0);
 
     const handleConfirmBooking = async () => {
         if (!termsChecked) return;
 
-        // Build a booking that matches createUserBooking's expected shape
-        // so it appears in both "Your Bookings" and the admin Bookings panel
-        const firstSlot = bookingData.slots[0];
-        const lastSlot = bookingData.slots[bookingData.slots.length - 1];
-        const startTime = firstSlot?.time.split(' - ')[0] || '6:00 AM';
-        const endTime = lastSlot?.time.split(' - ')[1] || '7:00 AM';
+        if (!venueId || !slotId || !date || !startTime || !endTime) {
+            Alert.alert('Error', 'Booking details are incomplete. Please go back and select a slot.');
+            return;
+        }
 
         const newBooking = {
-            venueId: 'venue_001',  // This summary screen is hardcoded to Pitchnova/venue_001
-            venueName: 'Pitchnova Sports Arena',
-            venueLocation: 'Near Fire Brigade, Bhayandar West',
-            date: '18 Feb 2026',
+            venueId,
+            slotId,
+            date,
             startTime,
             endTime,
-            sport: bookingData.sport,
+            sport,
+            surface,
             totalAmount: payableAmount,
-            userName: 'You',
         };
 
         const result = await addBooking(newBooking);
         if (!result.success) {
-            Alert.alert('Error', result.message || 'Could not create booking');
+            Alert.alert('Booking Failed', result.message || 'Could not create booking. Please try again.');
             return;
         }
 
@@ -83,9 +82,9 @@ export default function BookingSummaryScreen() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Pitchnova Sports Arena</Text>
+                <Text style={styles.headerTitle}>{venueName}</Text>
                 <View style={styles.headerRight}>
-                    <Text style={styles.headerSubtitle}>Near Fire Brigade, Bhayandar West</Text>
+                    <Text style={styles.headerSubtitle}>{venueLocation}</Text>
                 </View>
             </View>
 
@@ -103,29 +102,21 @@ export default function BookingSummaryScreen() {
                 {/* Slot Details */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Slot Details (02)</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.viewAllLink}>VIEW ALL</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.sectionTitle}>Slot Details (01)</Text>
                     </View>
 
-                    <Text style={styles.dateText}>18 Feb 2026</Text>
+                    <Text style={styles.dateText}>{date}</Text>
 
-                    {bookingData.slots.map((slot, index) => (
-                        <View key={index} style={styles.slotCard}>
-                            <View style={styles.slotLeft}>
-                                <Text style={styles.slotTime}>{slot.time}</Text>
-                                <Text style={styles.slotSurface}>{slot.surface}</Text>
-                                <Text style={styles.slotCourt}>{slot.court}</Text>
-                            </View>
-                            <View style={styles.slotRight}>
-                                <Text style={styles.slotPrice}>₹{slot.price}</Text>
-                                <TouchableOpacity>
-                                    <Ionicons name="close-circle" size={20} color="#F44336" />
-                                </TouchableOpacity>
-                            </View>
+                    <View style={styles.slotCard}>
+                        <View style={styles.slotLeft}>
+                            <Text style={styles.slotTime}>{startTime} – {endTime}</Text>
+                            {!!surface && <Text style={styles.slotSurface}>{surface}</Text>}
+                            <Text style={styles.slotCourt}>{sport}</Text>
                         </View>
-                    ))}
+                        <View style={styles.slotRight}>
+                            <Text style={styles.slotPrice}>₹{pricePerHour}</Text>
+                        </View>
+                    </View>
                 </View>
 
                 {/* Apply Coupon */}
@@ -150,17 +141,17 @@ export default function BookingSummaryScreen() {
 
                     <View style={styles.summaryRow}>
                         <Text style={styles.summaryLabel}>Sports</Text>
-                        <Text style={styles.summaryValue}>{bookingData.sport}</Text>
+                        <Text style={styles.summaryValue}>{sport}</Text>
                     </View>
 
                     <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Total Slot(S) Base Price (Incl. Taxes.)</Text>
-                        <Text style={styles.summaryValue}>₹{bookingData.basePrice}</Text>
+                        <Text style={styles.summaryLabel}>Slot Base Price</Text>
+                        <Text style={styles.summaryValue}>₹{pricePerHour}</Text>
                     </View>
 
                     <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Convenience Fees</Text>
-                        <Text style={styles.summaryValue}>+₹{bookingData.convenienceFee}</Text>
+                        <Text style={styles.summaryLabel}>Convenience Fees (3%)</Text>
+                        <Text style={styles.summaryValue}>+₹{convenienceFee}</Text>
                     </View>
 
                     <View style={[styles.summaryRow, styles.totalRow]}>
@@ -189,7 +180,7 @@ export default function BookingSummaryScreen() {
                                 </Text>
                             </View>
                         </View>
-                        <Text style={styles.insurancePrice}>+₹{bookingData.insurance}</Text>
+                        <Text style={styles.insurancePrice}>+₹{insurance}</Text>
                     </TouchableOpacity>
 
                     {/* Payable Amount */}

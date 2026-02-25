@@ -1,11 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockAdminApi, createUserBooking, getUserBookingList } from './adminMockApi';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
-// Physical device on same WiFi as this machine (IP: 10.216.216.122)
-// Android emulator: http://10.0.2.2:5000/api
-// iOS simulator:    http://localhost:5000/api
-const BASE_URL = 'http://10.216.216.122:5000/api';
+// Physical device on same WiFi: use your machine's current IPv4
+// Android emulator:             http://10.0.2.2:5000/api
+// iOS simulator:                http://localhost:5000/api
+const BASE_URL = 'http://10.185.49.122:5000/api';
 
 // ─── Token Helpers ────────────────────────────────────────────────────────────
 export const saveAuthData = async (token: string, user: any) => {
@@ -39,13 +38,18 @@ const apiFetch = async (
         if (token) (headers as any)['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
-
-    const data = await response.json();
-    return data;
+    try {
+        const response = await fetch(`${BASE_URL}${endpoint}`, {
+            ...options,
+            headers,
+        });
+        const data = await response.json();
+        return data;
+    } catch (err: any) {
+        // Network error — backend unreachable
+        console.error(`[API] ${endpoint} failed:`, err?.message);
+        return { success: false, message: 'Network error. Make sure backend is running and phone is on same WiFi.' };
+    }
 };
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
@@ -90,149 +94,121 @@ export const userApi = {
         apiFetch(`/user/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
-// ─── Admin API — MOCK MODE (no backend required) ─────────────────────────────
-// Swap this line to `adminApi = { ...real fetch calls... }` when connecting backend
-export const adminApi = mockAdminApi;
+// ─── Admin API — Real Backend ─────────────────────────────────────────────────
+export const adminApi = {
+    // Dashboard
+    getDashboard: () => apiFetch('/admin/dashboard'),
 
+    // Venues
+    getVenues: () => apiFetch('/admin/venues'),
+    getVenueById: (id: string) => apiFetch(`/admin/venues/${id}`),
+    createVenue: (body: any) =>
+        apiFetch('/admin/venues', { method: 'POST', body: JSON.stringify(body) }),
+    updateVenue: (id: string, body: any) =>
+        apiFetch(`/admin/venues/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteVenue: (id: string) =>
+        apiFetch(`/admin/venues/${id}`, { method: 'DELETE' }),
+    toggleVenueActive: (id: string) =>
+        apiFetch(`/admin/venues/${id}/toggle`, { method: 'PATCH' }),
 
+    // Slots
+    getSlots: (venueId?: string, date?: string) => {
+        const params = new URLSearchParams();
+        if (venueId) params.append('venueId', venueId);
+        if (date) params.append('date', date);
+        return apiFetch(`/admin/slots?${params.toString()}`);
+    },
+    bulkGenerateSlots: (body: { venueId: string; date: string; price: number; sport?: string; surface?: string }) =>
+        apiFetch('/admin/slots/bulk-generate', { method: 'POST', body: JSON.stringify(body) }),
+    createSlot: (body: any) =>
+        apiFetch('/admin/slots', { method: 'POST', body: JSON.stringify(body) }),
+    updateSlot: (id: string, body: any) =>
+        apiFetch(`/admin/slots/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    toggleSlotBlock: (id: string) =>
+        apiFetch(`/admin/slots/${id}/block`, { method: 'PATCH' }),
+    deleteSlot: (id: string) =>
+        apiFetch(`/admin/slots/${id}`, { method: 'DELETE' }),
 
-// ─── User-facing mock data ────────────────────────────────────────────────────
-// Matches the `Turf` interface in types/index.ts: id, name, description,
-// location (string), pricePerHour, images, amenities, rating, reviews
-const MOCK_TURF_LIST = [
-    {
-        id: 'venue_001',
-        name: 'Nine Star Turf',
-        description: 'Premium football & cricket ground with floodlights and ample parking.',
-        location: 'Sector 17, Kharghar, Navi Mumbai',
-        pricePerHour: 800,
-        images: [
-            'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800',
-            'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800',
-            'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800',
-        ],
-        amenities: ['Floodlights', 'Parking', 'Changing Rooms', 'Drinking Water'],
-        rating: 4.5,
-        reviews: 120,
-        sports: [{ name: 'Football' }, { name: 'Cricket' }],
-        isActive: true,
+    // Bookings
+    getBookings: (status?: string) => {
+        const params = status && status !== 'all' ? `?status=${status}` : '';
+        return apiFetch(`/admin/bookings${params}`);
     },
-    {
-        id: 'venue_002',
-        name: 'Green Valley Arena',
-        description: 'Indoor multi-sport facility with AC courts for badminton and basketball.',
-        location: 'Seawoods, Navi Mumbai',
-        pricePerHour: 600,
-        images: [
-            'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800',
-            'https://images.unsplash.com/photo-1612872081303-346747d34177?w=800',
-        ],
-        amenities: ['Air Conditioning', 'Parking', 'Cafeteria', 'Pro Shop'],
-        rating: 4.2,
-        reviews: 85,
-        sports: [{ name: 'Badminton' }, { name: 'Basketball' }],
-        isActive: true,
-    },
-    {
-        id: 'venue_003',
-        name: 'Champions Cricket Ground',
-        description: 'Full-size professional cricket ground with natural grass pitch and pavilion.',
-        location: 'Panvel, Navi Mumbai',
-        pricePerHour: 1200,
-        images: [
-            'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800',
-            'https://images.unsplash.com/photo-1593341646782-e0b495cff86d?w=800',
-        ],
-        amenities: ['Floodlights', 'Pavilion', 'Scoreboard', 'Parking'],
-        rating: 4.8,
-        reviews: 200,
-        sports: [{ name: 'Cricket' }],
-        isActive: true,
-    },
-    {
-        id: 'venue_004',
-        name: 'PowerPlay Sports Hub',
-        description: 'State of the art synthetic turf with FIFA-certified surface.',
-        location: 'Vashi, Navi Mumbai',
-        pricePerHour: 900,
-        images: [
-            'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
-            'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=800',
-        ],
-        amenities: ['FIFA Turf', 'Floodlights', 'Cafeteria', 'First Aid'],
-        rating: 4.6,
-        reviews: 150,
-        sports: [{ name: 'Football' }, { name: 'Hockey' }],
-        isActive: true,
-    },
-    {
-        id: 'venue_005',
-        name: 'Ace Badminton Centre',
-        description: 'Olympic-grade badminton courts with professional lighting and equipment.',
-        location: 'Nerul, Navi Mumbai',
-        pricePerHour: 450,
-        images: [
-            'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800',
-            'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800',
-        ],
-        amenities: ['Olympic Courts', 'Equipment Rental', 'Coach Available', 'Locker Room'],
-        rating: 4.3,
-        reviews: 92,
-        sports: [{ name: 'Badminton' }],
-        isActive: true,
-    },
-];
+    getBookingById: (id: string) => apiFetch(`/admin/bookings/${id}`),
+    updateBookingStatus: (id: string, body: { status?: string; paymentStatus?: string; adminNote?: string }) =>
+        apiFetch(`/admin/bookings/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
-const MOCK_SLOTS: Record<string, any[]> = {};
+    // Users
+    getUsers: () => apiFetch('/admin/users'),
+    getUserById: (id: string) => apiFetch(`/admin/users/${id}`),
+    getUserBookings: (id: string) => apiFetch(`/admin/users/${id}/bookings`),
+    toggleBlockUser: (id: string) =>
+        apiFetch(`/admin/users/${id}/block`, { method: 'PATCH' }),
+    promoteToAdmin: (id: string) =>
+        apiFetch(`/admin/users/${id}/promote`, { method: 'PATCH' }),
 
-const formatHour = (h: number) => {
-    const p = h >= 12 ? 'PM' : 'AM';
-    const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    return `${display}:00 ${p}`;
+    // Notifications
+    getNotifications: () => apiFetch('/admin/notifications'),
+    createNotification: (body: any) =>
+        apiFetch('/admin/notifications', { method: 'POST', body: JSON.stringify(body) }),
+    deleteNotification: (id: string) =>
+        apiFetch(`/admin/notifications/${id}`, { method: 'DELETE' }),
 };
 
-const buildSlots = (venueId: string, date: string, price: number) => {
-    const key = `${venueId}_${date}`;
-    if (!MOCK_SLOTS[key]) {
-        MOCK_SLOTS[key] = Array.from({ length: 17 }, (_, i) => ({
-            id: `${key}_${i + 6}`,
-            startTime: formatHour(i + 6),
-            endTime: formatHour(i + 7),
-            date,
-            isAvailable: ![8, 9, 14, 17].includes(i + 6),
-            price,
+// ─── User-Facing API Helpers ──────────────────────────────────────────────────
+// These call the real backend and are used by user-side screens and BookingContext.
+
+/** Get all active venues (normalizes _id → id for frontend compatibility) */
+export const getVenues = async () => {
+    const res = await userApi.getVenues();
+    if (res.success && Array.isArray(res.data)) {
+        res.data = res.data.map((v: any) => ({
+            ...v,
+            id: v._id || v.id,                     // ensure venue.id works in VenueListingCard
+            location: v.location?.address || v.location || '',
+            rating: v.rating ?? 4.5,
+            reviews: v.totalReviews ?? 0,
         }));
     }
-    return MOCK_SLOTS[key];
+    return res;
 };
 
-// ─── Legacy compatibility shims (now fully mock — no backend) ─────────────────
-export const getVenues = async () => ({
-    success: true,
-    data: MOCK_TURF_LIST,
-});
-
+/** Get a single venue by ID */
 export const getTurfDetails = async (id: string) => {
-    const venue = MOCK_TURF_LIST.find((v) => v.id === id);
+    const res = await userApi.getVenues();
+    if (!res.success) return { success: false, error: 'Could not load venues' };
+    const venue = (res.data as any[]).find((v: any) => v._id === id || v.id === id);
     return venue
         ? { success: true, data: venue }
         : { success: false, error: 'Venue not found' };
 };
 
+/** Get available slots for a venue on a date */
 export const getAvailableSlots = async (venueId: string, date: string) => {
-    const venue = MOCK_TURF_LIST.find((v) => v.id === venueId);
-    const price = venue?.pricePerHour || 500;
-    return { success: true, data: buildSlots(venueId, date, price) };
+    return userApi.getAvailableSlots(venueId, date);
 };
 
-// createBooking — writes into the shared admin mock store
-export const createBooking = createUserBooking;
+/** Create a booking (called from BookingContext or summary screen) */
+export const createBooking = async (body: {
+    venueId: string;
+    slotId: string;
+    venueName?: string;
+    venueLocation?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    sport?: string;
+    surface?: string;
+    totalAmount: number;
+}) => {
+    return userApi.createBooking(body);
+};
 
-// getUserBookings — reads from the same shared store (so admin status changes appear here)
-export const getUserBookings = getUserBookingList;
+/** Get current user's bookings */
+export const getUserBookings = async (_userId?: string) => {
+    return userApi.getMyBookings();
+};
 
-export const updateUserProfile = async (data: any) => ({
-    success: true,
-    data,
-});
-
+export const updateUserProfile = async (data: any) => {
+    return userApi.updateProfile(data);
+};

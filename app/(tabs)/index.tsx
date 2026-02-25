@@ -14,8 +14,26 @@ import VenueListingCard from '../../components/home/VenueListingCard';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 
+// ─── Static fallback venue shown when backend is unavailable ─────────────────
+const STATIC_VENUES: Turf[] = [
+    {
+        id: 'returf-static-1',
+        name: 'RETurf',
+        description: 'Premium multi-sport turf arena with state-of-the-art facilities. Book your slot now!',
+        location: 'Mumbai, Maharashtra',
+        pricePerHour: 200,
+        images: [
+            'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800',
+            'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800',
+        ],
+        amenities: ['Artificial Turf', 'Flood Lights', 'Parking', 'Changing Room', 'Drinking Water'],
+        rating: 4.8,
+        reviews: 124,
+    },
+];
+
 export default function HomeScreen() {
-    const [venues, setVenues] = useState<Turf[]>([]);
+    const [venues, setVenues] = useState<Turf[]>(STATIC_VENUES);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -24,12 +42,17 @@ export default function HomeScreen() {
         if (!refreshing) setLoading(true);
         setError(null);
 
-        const response = await getVenues();
-
-        if (response.success && response.data) {
-            setVenues(response.data);
-        } else {
-            setError(response.error || 'Failed to load venues');
+        try {
+            const response = await getVenues();
+            if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+                setVenues(response.data);
+            } else {
+                // Backend returned nothing — keep showing the static venue
+                setVenues(STATIC_VENUES);
+            }
+        } catch {
+            // Network error — keep showing the static venue
+            setVenues(STATIC_VENUES);
         }
 
         setLoading(false);
@@ -50,15 +73,6 @@ export default function HomeScreen() {
             <SafeAreaView style={styles.container} edges={['top']}>
                 <HomeHeader />
                 <LoadingSpinner message="Searching for venues..." />
-            </SafeAreaView>
-        );
-    }
-
-    if (error && !refreshing) {
-        return (
-            <SafeAreaView style={styles.container} edges={['top']}>
-                <HomeHeader />
-                <ErrorMessage message={error} onRetry={loadData} />
             </SafeAreaView>
         );
     }

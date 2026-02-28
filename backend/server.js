@@ -15,6 +15,12 @@ connectDB();
 
 const app = express();
 
+// Request Logger (Debug)
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 // ─── Security Middleware ─────────────────────────────
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
@@ -28,7 +34,7 @@ app.use('/api/user', userRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+    res.json({ status: 'OK', debug: 'FIX_APPLIED_V1', timestamp: new Date().toISOString() });
 });
 
 // 404 handler

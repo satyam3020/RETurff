@@ -11,12 +11,14 @@ const USERS_TO_SEED = [
     {
         name: 'Admin User',
         phone: '9999999999',
+        email: 'admin@returf.com',
         password: 'admin123',
         role: 'admin',
     },
     {
         name: 'Test User',
         phone: '8888888888',
+        email: 'test@returf.com',
         password: 'user1234',
         role: 'user',
     },
@@ -31,8 +33,9 @@ async function seed() {
             const existing = await User.findOne({ phone: u.phone });
 
             if (existing) {
-                // Already exists — role update karo
+                // Already exists — update role aur email
                 existing.role = u.role;
+                existing.email = u.email;
                 await existing.save();
                 console.log(`🔄 Updated  [${u.role.toUpperCase()}]  ${u.name}  (${u.phone})`);
             } else {
@@ -40,6 +43,7 @@ async function seed() {
                 await User.create({
                     name: u.name,
                     phone: u.phone,
+                    email: u.email,
                     passwordHash: u.password,
                     role: u.role,
                 });

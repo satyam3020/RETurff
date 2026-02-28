@@ -15,12 +15,22 @@ const userSchema = new mongoose.Schema(
             unique: true,
             match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number'],
         },
+        email: {
+            type: String,
+            required: [true, 'Email is required'],
+            unique: true,
+            lowercase: true,
+            trim: true,
+            match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
+        },
         passwordHash: {
             type: String,
             required: [true, 'Password is required'],
             minlength: 6,
             select: false, // Never returned in queries by default
         },
+        resetPasswordOTP: String,
+        resetPasswordExpires: Date,
         role: {
             type: String,
             enum: ['user', 'admin'],

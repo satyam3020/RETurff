@@ -6,6 +6,10 @@ import sessionEvents from './sessionEvents';
 // Auto-detected from config.ts — no need to hard-code an IP.
 // Override via app.json → expo.extra.apiUrl for staging / production.
 const BASE_URL = API_BASE_URL;
+// Physical device on same WiFi: use your machine's current IPv4
+// Android emulator:             http://10.0.2.2:5000/api
+// iOS simulator:                http://localhost:5000/api
+const BASE_URL = 'http://10.185.49.150:5000/api';
 
 // ─── Token Helpers ────────────────────────────────────────────────────────────
 export const saveAuthData = async (token: string, user: any, refreshToken?: string) => {
@@ -127,11 +131,17 @@ const apiFetch = async (
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 export const authApi = {
-    register: (body: { name: string; phone: string; password: string }) =>
+    register: (body: { name: string; phone: string; email: string; password: string }) =>
         apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) }, false),
 
     login: (body: { phone: string; password: string }) =>
         apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }, false),
+
+    forgotPassword: (email: string) =>
+        apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }, false),
+
+    resetPassword: (body: { email: string; otp: string; newPassword: string }) =>
+        apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }, false),
 
     getMe: () => apiFetch('/auth/me'),
 };

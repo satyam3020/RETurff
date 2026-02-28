@@ -9,12 +9,9 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../utils/theme';
 
-// Password reset via email OTP is not yet available.
-// Backend requires email/SMS provider integration (SendGrid / Twilio).
-// This screen shows a placeholder until that is set up.
+import { authApi } from '../services/api';
 
-const BACKEND_RESET_AVAILABLE = false;
-
+const BACKEND_RESET_AVAILABLE = true;
 
 type Step = 'email' | 'reset';
 
@@ -27,23 +24,65 @@ export default function ForgotPasswordScreen() {
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [foundEmail, setFoundEmail] = useState(''); // email confirmed to exist
 
     // ── Step 1: Send reset code ───────────────────────────
     const handleSendCode = async () => {
-        if (!BACKEND_RESET_AVAILABLE) {
-            Alert.alert(
-                '🚧 Coming Soon',
-                'Password reset via email is not yet available.\n\nPlease contact support or create a new account.',
-                [{ text: 'OK' }]
-            );
+        if (!email.includes('@')) {
+            Alert.alert('Invalid Email', 'Please enter your registered email address.');
             return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await authApi.forgotPassword(email.toLowerCase().trim());
+            if (res.success) {
+                Alert.alert('OTP Sent', res.message || 'Please check your email.');
+                setStep('reset');
+            } else {
+                Alert.alert('Error', res.message || 'Could not send OTP.');
+            }
+        } catch (err) {
+            Alert.alert('Error', 'Something went wrong. check network.');
+        } finally {
+            setLoading(false);
         }
     };
 
     // ── Step 2: Verify code & set new password ────────────
     const handleReset = async () => {
-        if (!BACKEND_RESET_AVAILABLE) return;
+        if (resetCode.length !== 6) {
+            Alert.alert('Invalid OTP', 'Please enter 6-digit code.');
+            return;
+        }
+        if (newPassword.length < 6) {
+            Alert.alert('Weak Password', 'Min 6 characters required.');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            Alert.alert('Mismatch', 'Passwords do not match.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await authApi.resetPassword({
+                email: email.toLowerCase().trim(),
+                otp: resetCode,
+                newPassword
+            });
+
+            if (res.success) {
+                Alert.alert('Success', 'Password changed! Now login with your phone & new password.', [
+                    { text: 'Login', onPress: () => router.replace('/login') }
+                ]);
+            } else {
+                Alert.alert('Error', res.message || 'Reset failed.');
+            }
+        } catch (err) {
+            Alert.alert('Error', 'Something went wrong.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -125,7 +164,7 @@ export default function ForgotPasswordScreen() {
                             <>
                                 <Text style={styles.title}>Enter Reset Code</Text>
                                 <Text style={styles.subtitle}>
-                                    Check your email <Text style={styles.boldText}>{foundEmail}</Text> for the 6-digit code.
+                                    Check your email <Text style={styles.boldText}>{email}</Text> for the 6-digit code.
                                 </Text>
 
                                 {/* Step indicator */}

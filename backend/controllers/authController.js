@@ -4,8 +4,8 @@ const User = require('../models/User');
 
 // ─── Helper ─────────────────────────────────────────
 const signToken = (userId) =>
-    jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    jwt.sign({ id: userId }, process.env.JWT_SECRET || 'fallback_secret', {
+        expiresIn: process.env.JWT_EXPIRE || '7d',
     });
 
 const sendToken = (res, user, statusCode = 200) => {
@@ -17,6 +17,7 @@ const sendToken = (res, user, statusCode = 200) => {
             id: user._id,
             name: user.name,
             phone: user.phone,
+            email: user.email,
             role: user.role,
         },
     });
@@ -26,6 +27,7 @@ const sendToken = (res, user, statusCode = 200) => {
 const registerValidation = [
     body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
     body('phone').matches(/^[0-9]{10}$/).withMessage('Enter a valid 10-digit phone number'),
+    body('email').isEmail().withMessage('Enter a valid email address').normalizeEmail(),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
 ];
 
@@ -46,16 +48,22 @@ const register = async (req, res, next) => {
             return res.status(400).json({ success: false, errors: errors.array() });
         }
 
-        const { name, phone, password } = req.body;
+        const { name, phone, email, password } = req.body;
 
-        const existing = await User.findOne({ phone });
-        if (existing) {
+        const existingPhone = await User.findOne({ phone });
+        if (existingPhone) {
             return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+        }
+
+        const existingEmail = await User.findOne({ email });
+        if (existingEmail) {
+            return res.status(400).json({ success: false, message: 'Email already registered.' });
         }
 
         const user = await User.create({
             name,
             phone,
+            email,
             passwordHash: password, // pre-save hook hashes this
         });
 
@@ -106,4 +114,119 @@ const getMe = async (req, res) => {
     res.json({ success: true, user: req.user });
 };
 
-module.exports = { register, login, getMe, registerValidation, loginValidation };
+/**
+ * POST /api/auth/forgot-password
+ */
+const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found with this email.' });
+        }
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        user.resetPasswordOTP = otp;
+        user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+        await user.save();
+
+        // Send Real Email
+        try {
+            const nodemailer = require('nodemailer');
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
+                },
+            });
+
+            await transporter.sendMail({
+                from: `"RETurf Support" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: 'Password Reset OTP - RETurf',
+                text: `Your OTP for password reset is: ${otp}. Valid for 10 minutes.`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                        <h2 style="color: #FF5722;">RETurf Password Reset</h2>
+                        <p>Hello,</p>
+                        <p>You requested to reset your password. Use the following OTP to proceed:</p>
+                        <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #FF5722;">
+                            ${otp}
+                        </div>
+                        <p style="margin-top: 20px;">This OTP is valid for <b>10 minutes</b>. If you didn't request this, please ignore this email.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                        <p style="font-size: 12px; color: #888;">Note: For Gmail, please use an <b>App Password</b> if 2FA is enabled.</p>
+                    </div>
+                `,
+            });
+
+            console.log(`✅ OTP sent to ${user.email}`);
+            res.json({ success: true, message: 'OTP sent successfully to your email.' });
+        } catch (mailError) {
+            console.error('❌ Email Delivery Failed:', mailError.message);
+
+            // Fallback for development if credentials aren't set yet
+            if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+                console.log(`⚠️  [DEV FALLBACK] OTP for ${email}: ${otp}`);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Email service not configured. Please add EMAIL_USER and EMAIL_PASS to backend .env'
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send email. Check internet or email credentials.'
+            });
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * POST /api/auth/reset-password
+ */
+const resetPassword = async (req, res, next) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ success: false, message: 'All fields are required.' });
+        }
+
+        const user = await User.findOne({
+            email,
+            resetPasswordOTP: otp,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: 'Invalid or expired OTP.' });
+        }
+
+        // Update password
+        user.passwordHash = newPassword;
+        user.resetPasswordOTP = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.json({ success: true, message: 'Password updated successfully. You can now login with your phone number and new password.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = {
+    register,
+    login,
+    getMe,
+    forgotPassword,
+    resetPassword,
+    registerValidation,
+    loginValidation
+};

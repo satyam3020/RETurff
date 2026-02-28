@@ -1,10 +1,17 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ViewToken } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS, SPACING } from '../../utils/theme';
 
 const { width } = Dimensions.get('window');
+const IMAGE_WIDTH = width - (SPACING.md * 2);
+
+// Default turf images shown when backend provides none
+const DEFAULT_TURF_IMAGES = [
+    'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800',  // Football turf
+    'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800',  // Cricket turf
+];
 
 interface Venue {
     id: string;
@@ -20,11 +27,14 @@ interface Venue {
 }
 
 export default function VenueListingCard({ venue }: { venue: Venue }) {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const flatListRef = useRef<FlatList>(null);
+
     const handlePress = () => {
         router.push(`/venue/${venue.id}` as any);
     };
 
-    const imageUri = venue.images && venue.images.length > 0 ? venue.images[0] : null;
+    const images = venue.images && venue.images.length > 0 ? venue.images : DEFAULT_TURF_IMAGES;
     const priceLabel = venue.pricePerHour || venue.price;
     const sportIcons: Record<string, string> = {
         Football: '⚽',
@@ -35,6 +45,24 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
         Pickleball: '🎾',
         General: '🏃',
     };
+
+    const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        if (viewableItems.length > 0 && viewableItems[0].index != null) {
+            setActiveIndex(viewableItems[0].index);
+        }
+    }, []);
+
+    const viewabilityConfig = useRef({
+        viewAreaCoveragePercentThreshold: 50,
+    }).current;
+
+    const renderImageItem = ({ item }: { item: string }) => (
+        <Image
+            source={{ uri: item }}
+            style={styles.carouselImage}
+            resizeMode="cover"
+        />
+    );
 
     return (
         <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.9}>
@@ -50,13 +78,26 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                 </View>
             </View>
 
-            {/* Image or Placeholder */}
+            {/* Image Carousel or Placeholder */}
             <View style={styles.imageContainer}>
-                {imageUri ? (
-                    <Image
-                        source={{ uri: imageUri }}
-                        style={styles.image}
-                        resizeMode="cover"
+                {images.length > 0 ? (
+                    <FlatList
+                        ref={flatListRef}
+                        data={images}
+                        renderItem={renderImageItem}
+                        keyExtractor={(item, index) => `${venue.id}-img-${index}`}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        snapToInterval={IMAGE_WIDTH}
+                        decelerationRate="fast"
+                        onViewableItemsChanged={onViewableItemsChanged}
+                        viewabilityConfig={viewabilityConfig}
+                        getItemLayout={(_, index) => ({
+                            length: IMAGE_WIDTH,
+                            offset: IMAGE_WIDTH * index,
+                            index,
+                        })}
                     />
                 ) : (
                     <View style={styles.imagePlaceholder}>
@@ -79,11 +120,20 @@ export default function VenueListingCard({ venue }: { venue: Venue }) {
                     </View>
                 ) : null}
 
-                <View style={styles.pagination}>
-                    <View style={[styles.dot, styles.dotActive]} />
-                    <View style={styles.dot} />
-                    <View style={styles.dot} />
-                </View>
+                {/* Dynamic Pagination Dots */}
+                {images.length > 1 && (
+                    <View style={styles.pagination}>
+                        {images.map((_, i) => (
+                            <View
+                                key={i}
+                                style={[
+                                    styles.dot,
+                                    activeIndex === i && styles.dotActive,
+                                ]}
+                            />
+                        ))}
+                    </View>
+                )}
             </View>
 
             {/* Footer Amenities & Sports */}
@@ -153,15 +203,15 @@ const styles = StyleSheet.create({
         fontWeight: 'normal',
     },
     imageContainer: {
-        width: '100%',
+        width: IMAGE_WIDTH,
         height: 200,
         borderRadius: 16,
         overflow: 'hidden',
         marginBottom: SPACING.md,
     },
-    image: {
-        width: '100%',
-        height: '100%',
+    carouselImage: {
+        width: IMAGE_WIDTH,
+        height: 200,
     },
     imagePlaceholder: {
         width: '100%',

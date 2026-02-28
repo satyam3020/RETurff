@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { COLORS, SPACING } from '../../utils/theme';
 import { useBookings, ConfirmedBooking } from '../../context/BookingContext';
 
@@ -39,10 +39,9 @@ export default function BookingsScreen() {
         setRefreshing(false);
     }, [refreshBookings]);
 
-    // Categorise by admin status
+    // Categorise by admin status — only active bookings now (backend filters out past)
     const pendingBookings = bookings.filter(b => b.status === 'pending' || b.status === 'payment_pending');
     const approvedBookings = bookings.filter(b => b.status === 'approved' || b.status === 'upcoming');
-    const pastBookings = bookings.filter(b => b.status === 'completed' || b.status === 'cancelled' || b.status === 'rejected');
 
     const renderBookingCard = (booking: ConfirmedBooking) => {
         const statusCfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
@@ -52,14 +51,22 @@ export default function BookingsScreen() {
         const endTime = booking.endTime || booking.slots?.[booking.slots.length - 1]?.time.split(' - ')[1] || '';
 
         return (
-            <TouchableOpacity key={booking._id} style={styles.bookingCard} activeOpacity={0.9}>
+            <TouchableOpacity key={booking._id} style={styles.bookingCard} activeOpacity={0.9}
+                onPress={() => router.push({ pathname: '/booking-detail', params: { bookingId: booking._id } })}
+            >
                 <Image source={{ uri: VENUE_IMAGE }} style={styles.bookingImage} />
 
                 {/* Status banner for pending */}
-                {(booking.status === 'pending' || booking.status === 'payment_pending') && (
+                {(booking.status === 'pending' || booking.status === 'payment_pending') && booking.paymentStatus !== 'paid' && (
                     <View style={styles.pendingBanner}>
                         <Ionicons name="time-outline" size={14} color="#FF9800" />
                         <Text style={styles.pendingBannerText}>Awaiting admin confirmation · Pay at venue</Text>
+                    </View>
+                )}
+                {booking.paymentStatus === 'paid' && (
+                    <View style={[styles.pendingBanner, { backgroundColor: '#E8F5E9', borderBottomColor: '#C8E6C9' }]}>
+                        <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                        <Text style={[styles.pendingBannerText, { color: '#4CAF50' }]}>Payment confirmed ✓</Text>
                     </View>
                 )}
                 {booking.status === 'approved' && (
@@ -149,7 +156,6 @@ export default function BookingsScreen() {
                         <>
                             {renderSection('Awaiting Confirmation', pendingBookings, '⏳')}
                             {renderSection('Confirmed Bookings', approvedBookings, '✅')}
-                            {renderSection('Past Bookings', pastBookings, '📋')}
                         </>
                     )}
                     <View style={{ height: 24 }} />

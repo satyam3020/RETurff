@@ -15,7 +15,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     rejected: { bg: '#f3f4f6', text: '#6b7280' },
 };
 
-const ACTIONS = ['Approve', 'Reject', 'Mark Completed', 'Cancel', 'Dismiss'];
+const ACTIONS = ['Approve', 'Reject', 'Mark Completed', 'Confirm Payment', 'Cancel', 'Dismiss'];
 
 export default function AdminBookings() {
     const [bookings, setBookings] = useState<any[]>([]);
@@ -44,27 +44,52 @@ export default function AdminBookings() {
     const handleAction = (booking: any) => {
         const options = [...ACTIONS];
         if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 4, destructiveButtonIndex: 3 }, (i) => applyAction(i, booking));
+            ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 5, destructiveButtonIndex: 4 }, (i) => applyAction(i, booking));
         } else {
             Alert.alert(booking.venueName, 'Choose action', [
                 { text: 'Approve', onPress: () => applyAction(0, booking) },
                 { text: 'Reject', onPress: () => applyAction(1, booking) },
                 { text: 'Mark Completed', onPress: () => applyAction(2, booking) },
-                { text: 'Cancel', style: 'destructive', onPress: () => applyAction(3, booking) },
+                { text: 'Confirm Payment', onPress: () => applyAction(3, booking) },
+                { text: 'Cancel', style: 'destructive', onPress: () => applyAction(4, booking) },
                 { text: 'Dismiss', style: 'cancel' },
             ]);
         }
     };
 
     const applyAction = async (idx: number, booking: any) => {
-        const map = [{ status: 'approved' }, { status: 'rejected' }, { status: 'completed' }, { status: 'cancelled' }];
-        if (idx > 3) return;
+        const map: Record<number, any> = {
+            0: { status: 'approved' },
+            1: { status: 'rejected' },
+            2: { status: 'completed' },
+            3: { paymentStatus: 'paid' },
+            4: { status: 'cancelled' },
+        };
+        if (!map[idx]) return;
         await adminApi.updateBookingStatus(booking._id, map[idx]);
         load(activeTab);
     };
 
+    const handlePaymentDone = (booking: any) => {
+        Alert.alert(
+            'Confirm Payment',
+            `Mark payment of ₹${booking.totalAmount} as received from ${booking.userName}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Yes, Payment Done',
+                    onPress: async () => {
+                        await adminApi.updateBookingStatus(booking._id, { paymentStatus: 'paid' });
+                        load(activeTab);
+                    },
+                },
+            ]
+        );
+    };
+
     const renderItem = ({ item }: { item: any }) => {
         const sc = STATUS_COLORS[item.status] || { bg: '#f3f4f6', text: '#555' };
+        const isPaid = item.paymentStatus === 'paid';
         return (
             <View style={styles.card}>
                 <View style={styles.cardTop}>
@@ -79,6 +104,20 @@ export default function AdminBookings() {
                             <Text style={[styles.badgeText, { color: sc.text }]}>{item.status}</Text>
                         </View>
                     </View>
+                </View>
+                {/* Payment Done Button or Confirmed Badge */}
+                <View style={styles.paymentRow}>
+                    {isPaid ? (
+                        <View style={styles.paymentDoneBadge}>
+                            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                            <Text style={styles.paymentDoneText}>Payment Done ✓</Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity style={styles.paymentDoneBtn} onPress={() => handlePaymentDone(item)}>
+                            <Ionicons name="cash-outline" size={16} color="#fff" />
+                            <Text style={styles.paymentDoneBtnText}>💰 Payment Done</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
                 <View style={styles.cardActions}>
                     <Text style={styles.phone}>{item.userPhone}</Text>
@@ -128,6 +167,17 @@ const styles = StyleSheet.create({
     badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, alignSelf: 'flex-end' },
     badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
     cardActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10 },
+    paymentRow: { marginBottom: 8 },
+    paymentDoneBtn: {
+        flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+        backgroundColor: '#FF9800', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+    },
+    paymentDoneBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    paymentDoneBadge: {
+        flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+        backgroundColor: '#d1fae5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+    },
+    paymentDoneText: { color: '#059669', fontSize: 12, fontWeight: '700' },
     phone: { fontSize: 12, color: '#888' },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3f4f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
     actionText: { fontSize: 12, fontWeight: '600', color: '#555' },

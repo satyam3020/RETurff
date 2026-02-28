@@ -1,5 +1,5 @@
-// Generate Bio Screen
-import React, { useState } from 'react';
+// Generate Bio Screen — saves bio to backend
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,16 +8,26 @@ import {
     TextInput,
     ActivityIndicator,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS, SPACING } from '../../utils/theme';
+import { userApi, saveAuthData, getAuthToken, getAuthUser } from '../../services/api';
 
 export default function GenerateBioScreen() {
     const [generatedBio, setGeneratedBio] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [customBio, setCustomBio] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    // Load existing bio on mount
+    useEffect(() => {
+        getAuthUser().then((user) => {
+            if (user?.bio) setCustomBio(user.bio);
+        });
+    }, []);
 
     const handleGenerate = () => {
         setIsGenerating(true);
@@ -30,12 +40,30 @@ export default function GenerateBioScreen() {
         }, 2000);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const bioToSave = customBio || generatedBio;
-        if (bioToSave) {
-            console.log('Saving bio:', bioToSave);
-            router.back();
+        if (!bioToSave) return;
+        setSaving(true);
+        try {
+            const res = await userApi.updateProfile({ bio: bioToSave });
+            if (res.success) {
+                const token = await getAuthToken();
+                if (token && res.data) await saveAuthData(token, res.data);
+                Alert.alert('Saved!', 'Your bio has been saved.', [
+                    { text: 'OK', onPress: () => router.back() },
+                ]);
+            } else {
+                Alert.alert('Error', res.message || 'Failed to save bio.');
+            }
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'Something went wrong.');
+        } finally {
+            setSaving(false);
         }
+    };
+
+    const handleUseGenerated = () => {
+        setCustomBio(generatedBio);
     };
 
     return (
@@ -50,7 +78,7 @@ export default function GenerateBioScreen() {
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                <Text style={styles.subtitle}>Generate a bio with AI</Text>
+                <Text style={styles.subtitle}>Generate a bio with AI or write your own</Text>
 
                 {/* Generate Button */}
                 {!generatedBio && (
@@ -78,13 +106,22 @@ export default function GenerateBioScreen() {
                             <Text style={styles.bioHeaderText}>Generated Bio</Text>
                         </View>
                         <Text style={styles.bioText}>{generatedBio}</Text>
-                        <TouchableOpacity
-                            style={styles.regenerateButton}
-                            onPress={handleGenerate}
-                        >
-                            <MaterialCommunityIcons name="refresh" size={16} color="#FF5722" />
-                            <Text style={styles.regenerateButtonText}>Regenerate</Text>
-                        </TouchableOpacity>
+                        <View style={styles.bioActions}>
+                            <TouchableOpacity
+                                style={styles.useButton}
+                                onPress={handleUseGenerated}
+                            >
+                                <Ionicons name="checkmark" size={16} color="#fff" />
+                                <Text style={styles.useButtonText}>Use This</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.regenerateButton}
+                                onPress={handleGenerate}
+                            >
+                                <MaterialCommunityIcons name="refresh" size={16} color="#FF5722" />
+                                <Text style={styles.regenerateButtonText}>Regenerate</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 )}
 
@@ -108,8 +145,16 @@ export default function GenerateBioScreen() {
 
                 {/* Save Button */}
                 {(generatedBio || customBio) && (
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                        <Text style={styles.saveButtonText}>Save Bio</Text>
+                    <TouchableOpacity
+                        style={[styles.saveButton, saving && { opacity: 0.7 }]}
+                        onPress={handleSave}
+                        disabled={saving}
+                    >
+                        {saving ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                            <Text style={styles.saveButtonText}>Save Bio</Text>
+                        )}
                     </TouchableOpacity>
                 )}
 
@@ -187,11 +232,30 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: SPACING.md,
     },
+    bioActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    useButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,
+    },
+    useButtonText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#fff',
+    },
     regenerateButton: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        alignSelf: 'flex-start',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     regenerateButtonText: {
         fontSize: 14,

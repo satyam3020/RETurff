@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
-    KeyboardAvoidingView, Platform, Alert, ScrollView,
+    KeyboardAvoidingView, Platform, Alert, ScrollView, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -14,6 +14,14 @@ type Role = 'user' | 'admin';
 
 export default function LoginScreen() {
     const [role, setRole] = useState<Role>('user');
+
+    // ── Keyboard visibility tracker ────────────────
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+    useEffect(() => {
+        const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+        return () => { show.remove(); hide.remove(); };
+    }, []);
 
     // ── User state ──────────────────────────────────────
     const [phone, setPhone] = useState('');
@@ -46,7 +54,7 @@ export default function LoginScreen() {
                 Alert.alert('Login Failed', 'Please use the Admin tab to sign in as admin.');
                 return;
             }
-            await saveAuthData(res.token, res.user);
+            await saveAuthData(res.token, res.user, res.refreshToken);
             router.replace('/(tabs)');
         } catch (e: any) {
             Alert.alert('Error', 'Login failed. Please check your network and try again.');
@@ -72,7 +80,7 @@ export default function LoginScreen() {
             if (res.user.role !== 'admin') {
                 Alert.alert('Access Denied', 'This account does not have admin privileges.'); return;
             }
-            await saveAuthData(res.token, res.user);
+            await saveAuthData(res.token, res.user, res.refreshToken);
             router.replace('/(admin)/dashboard');
         } catch (e: any) {
             Alert.alert('Error', 'Login failed. Please check your network and try again.');
@@ -88,18 +96,23 @@ export default function LoginScreen() {
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                {/* ── Orange Header ─────────────────────── */}
-                <View style={styles.header}>
-                    <View style={styles.circleDecoration} />
-                    <View style={styles.logoContainer}>
-                        <Text style={styles.logoIcon}>🏟️</Text>
-                        <Text style={styles.logoText}>RETurf</Text>
-                        <Text style={styles.tagline}>INDIA'S SPORTS APP</Text>
+                {/* ── Orange Header — hidden when keyboard is open ── */}
+                {!keyboardVisible && (
+                    <View style={styles.header}>
+                        <View style={styles.circleDecoration} />
+                        <View style={styles.logoContainer}>
+                            <Text style={styles.logoIcon}>🏟️</Text>
+                            <Text style={styles.logoText}>RETurf</Text>
+                            <Text style={styles.tagline}>INDIA'S SPORTS APP</Text>
+                        </View>
                     </View>
-                </View>
+                )}
 
-                {/* ── White Card ────────────────────────── */}
-                <View style={styles.content}>
+                {/* ── White Card ──────────────────── */}
+                <View style={[
+                    styles.content,
+                    keyboardVisible && { borderTopLeftRadius: 0, borderTopRightRadius: 0 }
+                ]}>
                     <View style={styles.dragHandle} />
 
                     {/* ── Role Tabs ─────────────────────── */}
@@ -300,7 +313,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.white,
         borderTopLeftRadius: 24, borderTopRightRadius: 24,
         padding: SPACING.xl, paddingBottom: SPACING.xxl * 2,
-        flex: 1.6,
+        flex: 1,
     },
     dragHandle: {
         width: 40, height: 4, backgroundColor: COLORS.gray200,

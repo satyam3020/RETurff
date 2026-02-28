@@ -16,55 +16,71 @@ import { useBookings } from '../../../context/BookingContext';
 export default function BookingSummaryScreen() {
     const params = useLocalSearchParams();
     const { addBooking } = useBookings();
-    const [insuranceChecked, setInsuranceChecked] = useState(true);
     const [termsChecked, setTermsChecked] = useState(false);
+    const [rulesExpanded, setRulesExpanded] = useState(false);
     const [couponExpanded, setCouponExpanded] = useState(false);
 
     // ── Extract real params passed from the booking screen ──
     const venueId = (params.venueId as string) || '';
     const venueName = (params.venueName as string) || 'Unknown Venue';
     const venueLocation = (params.venueLocation as string) || '';
-    const slotId = (params.slotId as string) || '';
     const date = (params.date as string) || '';
-    const startTime = (params.startTime as string) || '';
-    const endTime = (params.endTime as string) || '';
     const sport = (params.sport as string) || 'General';
     const surface = (params.surface as string) || '';
-    const pricePerHour = Number(params.price) || 0;
 
-    const convenienceFee = Math.round(pricePerHour * 0.03); // 3% convenience fee
-    const insurance = 10;
-    const slotTotal = pricePerHour + convenienceFee;
-    const payableAmount = slotTotal + (insuranceChecked ? insurance : 0);
+    // Parse multiple slots from JSON (new multi-select flow)
+    const parsedSlots: { _id: string; startTime: string; endTime: string; price: number; surface?: string }[] =
+        params.slotsJson ? JSON.parse(params.slotsJson as string) : [];
+
+    // Fallback: legacy single-slot params
+    const legacySlotId = (params.slotId as string) || '';
+    const legacyStartTime = (params.startTime as string) || '';
+    const legacyEndTime = (params.endTime as string) || '';
+    const legacyPrice = Number(params.price) || 0;
+
+    // Final slots list to display & book
+    const allSlots = parsedSlots.length > 0
+        ? parsedSlots
+        : legacySlotId ? [{ _id: legacySlotId, startTime: legacyStartTime, endTime: legacyEndTime, price: legacyPrice, surface }] : [];
+
+    const slotsBaseTotal = allSlots.reduce((sum, s) => sum + s.price, 0);
+    const convenienceFee = Math.round(slotsBaseTotal * 0.03);
+    const slotTotal = slotsBaseTotal + convenienceFee;
+    const payableAmount = slotTotal;
 
     const handleConfirmBooking = async () => {
         if (!termsChecked) return;
 
-        if (!venueId || !slotId || !date || !startTime || !endTime) {
+        if (!venueId || allSlots.length === 0 || !date) {
             Alert.alert('Error', 'Booking details are incomplete. Please go back and select a slot.');
             return;
         }
 
-        const newBooking = {
-            venueId,
-            slotId,
-            date,
-            startTime,
-            endTime,
-            sport,
-            surface,
-            totalAmount: payableAmount,
-        };
+        // Create one booking per slot
+        let failed = 0;
+        for (const slot of allSlots) {
+            const newBooking = {
+                venueId,
+                slotId: slot._id,
+                date,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                sport,
+                surface: slot.surface || surface,
+                totalAmount: Math.round(payableAmount / allSlots.length),
+            };
+            const result = await addBooking(newBooking);
+            if (!result.success) failed++;
+        }
 
-        const result = await addBooking(newBooking);
-        if (!result.success) {
-            Alert.alert('Booking Failed', result.message || 'Could not create booking. Please try again.');
+        if (failed === allSlots.length) {
+            Alert.alert('Booking Failed', 'Could not create bookings. Please try again.');
             return;
         }
 
         Alert.alert(
             '✅ Booking Confirmed!',
-            'Your booking has been submitted. Status is Pending until admin confirms. You can pay at the venue.',
+            `${allSlots.length - failed} slot${allSlots.length - failed > 1 ? 's' : ''} booked. Status is Pending until admin confirms. You can pay at the venue.`,
             [
                 {
                     text: 'View Bookings',
@@ -89,34 +105,71 @@ export default function BookingSummaryScreen() {
             </View>
 
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                {/* Venue Rules Card */}
-                <TouchableOpacity style={styles.rulesCard}>
-                    <View style={styles.rulesLeft}>
-                        <Text style={styles.rulesTitle}>Venue Rules & Cancellation Policy</Text>
-                        <Text style={styles.rulesSubtitle}>• Check cancellation terms</Text>
-                        <Text style={styles.rulesSubtitle}>• Know the venue's T&Cs</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
+                {/* Venue Rules Card — Expandable */}
+                <View style={styles.rulesSection}>
+                    <TouchableOpacity style={styles.rulesCard} onPress={() => setRulesExpanded(!rulesExpanded)}>
+                        <View style={styles.rulesLeft}>
+                            <Text style={styles.rulesTitle}>Venue Rules & Cancellation Policy</Text>
+                            {!rulesExpanded && (
+                                <>
+                                    <Text style={styles.rulesSubtitle}>• Check cancellation terms</Text>
+                                    <Text style={styles.rulesSubtitle}>• Know the venue's T&Cs</Text>
+                                </>
+                            )}
+                        </View>
+                        <Ionicons name={rulesExpanded ? 'chevron-down' : 'chevron-forward'} size={20} color="#666" />
+                    </TouchableOpacity>
+
+                    {rulesExpanded && (
+                        <View style={styles.rulesContent}>
+                            <Text style={styles.rulesHeading}>Rules</Text>
+                            <Text style={styles.ruleText}>Wear appropriate sports attire and shoes while playing.</Text>
+                            <Text style={styles.ruleText}>Be present at the venue 10 mins prior to the booked slot.</Text>
+                            <Text style={styles.ruleText}>Management is not responsible for loss of personal belongings or any injuries caused during the match.</Text>
+                            <Text style={styles.ruleText}>No water and food allowed from outside.</Text>
+                            <Text style={styles.ruleText}>Please Carry Your Football or Cricket Bats.</Text>
+
+                            <Text style={[styles.rulesHeading, { marginTop: 16 }]}>Additional Terms & Conditions</Text>
+                            <Text style={styles.ruleText}>No Smoking</Text>
+                            <Text style={styles.ruleText}>No Drinking</Text>
+
+                            <Text style={[styles.rulesHeading, { marginTop: 16 }]}>Cancellation Policy</Text>
+                            <View style={styles.policyItem}>
+                                <View style={styles.policyDot} />
+                                <Text style={styles.policyText}>Non Refundable if cancellation is made less than 12 hours from the slot start time.</Text>
+                            </View>
+                            <View style={styles.policyItem}>
+                                <View style={styles.policyDot} />
+                                <Text style={styles.policyText}>50% Refundable if cancellation is made 12 hours before the slot start time.</Text>
+                            </View>
+                            <View style={styles.policyItem}>
+                                <View style={styles.policyDot} />
+                                <Text style={styles.policyText}>100% Refundable if cancellation is made 24 hours before the slot start time.</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
 
                 {/* Slot Details */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Slot Details (01)</Text>
+                        <Text style={styles.sectionTitle}>Slot Details ({String(allSlots.length).padStart(2, '0')})</Text>
                     </View>
 
                     <Text style={styles.dateText}>{date}</Text>
 
-                    <View style={styles.slotCard}>
-                        <View style={styles.slotLeft}>
-                            <Text style={styles.slotTime}>{startTime} – {endTime}</Text>
-                            {!!surface && <Text style={styles.slotSurface}>{surface}</Text>}
-                            <Text style={styles.slotCourt}>{sport}</Text>
+                    {allSlots.map((slot, i) => (
+                        <View key={slot._id || i} style={styles.slotCard}>
+                            <View style={styles.slotLeft}>
+                                <Text style={styles.slotTime}>{slot.startTime} – {slot.endTime}</Text>
+                                {!!(slot.surface || surface) && <Text style={styles.slotSurface}>{slot.surface || surface}</Text>}
+                                <Text style={styles.slotCourt}>{sport}</Text>
+                            </View>
+                            <View style={styles.slotRight}>
+                                <Text style={styles.slotPrice}>₹{slot.price}</Text>
+                            </View>
                         </View>
-                        <View style={styles.slotRight}>
-                            <Text style={styles.slotPrice}>₹{pricePerHour}</Text>
-                        </View>
-                    </View>
+                    ))}
                 </View>
 
                 {/* Apply Coupon */}
@@ -145,8 +198,8 @@ export default function BookingSummaryScreen() {
                     </View>
 
                     <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Slot Base Price</Text>
-                        <Text style={styles.summaryValue}>₹{pricePerHour}</Text>
+                        <Text style={styles.summaryLabel}>Slots ({allSlots.length}) Base Price</Text>
+                        <Text style={styles.summaryValue}>₹{slotsBaseTotal}</Text>
                     </View>
 
                     <View style={styles.summaryRow}>
@@ -158,30 +211,6 @@ export default function BookingSummaryScreen() {
                         <Text style={styles.totalLabel}>Slot Total</Text>
                         <Text style={styles.totalValue}>₹{slotTotal}</Text>
                     </View>
-
-                    {/* Sports Injury Insurance */}
-                    <TouchableOpacity
-                        style={styles.insuranceRow}
-                        onPress={() => setInsuranceChecked(!insuranceChecked)}
-                    >
-                        <View style={styles.insuranceLeft}>
-                            <MaterialCommunityIcons
-                                name={insuranceChecked ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                                size={20}
-                                color={insuranceChecked ? '#4CAF50' : '#999'}
-                            />
-                            <View style={styles.insuranceInfo}>
-                                <View style={styles.insuranceTitleRow}>
-                                    <Text style={styles.insuranceTitle}>Sports Injury Insurance</Text>
-                                    <Ionicons name="information-circle-outline" size={16} color="#999" />
-                                </View>
-                                <Text style={styles.insuranceDesc}>
-                                    Play safe by adding Sports Injury Insurance (Benefits upto ₹ 25,000/-) at 10.00 / Session
-                                </Text>
-                            </View>
-                        </View>
-                        <Text style={styles.insurancePrice}>+₹{insurance}</Text>
-                    </TouchableOpacity>
 
                     {/* Payable Amount */}
                     <View style={[styles.summaryRow, styles.payableRow]}>
@@ -203,8 +232,7 @@ export default function BookingSummaryScreen() {
                     <Text style={styles.termsText}>
                         I hereby agree to the{' '}
                         <Text style={styles.termsLink}>Terms & Conditions</Text> of{' '}
-                        <Text style={styles.termsLink}>KheloMore</Text> and{' '}
-                        <Text style={styles.termsLink}>Pitchnova Sports Arena</Text>
+                        <Text style={styles.termsLink}>RETurf</Text>
                     </Text>
                 </TouchableOpacity>
 
@@ -396,44 +424,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#333',
     },
-    insuranceRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        paddingVertical: SPACING.md,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        marginTop: SPACING.sm,
-    },
-    insuranceLeft: {
-        flexDirection: 'row',
-        flex: 1,
-        gap: 10,
-    },
-    insuranceInfo: {
-        flex: 1,
-    },
-    insuranceTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginBottom: 4,
-    },
-    insuranceTitle: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#333',
-    },
-    insuranceDesc: {
-        fontSize: 11,
-        color: '#666',
-        lineHeight: 16,
-    },
-    insurancePrice: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-    },
+    rulesSection: { marginTop: SPACING.md },
+    rulesContent: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, backgroundColor: COLORS.white },
+    rulesHeading: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 },
+    ruleText: { fontSize: 14, color: '#555', lineHeight: 21, marginBottom: 10 },
+    policyItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 14 },
+    policyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333', marginTop: 6 },
+    policyText: { flex: 1, fontSize: 14, color: '#555', lineHeight: 21 },
     payableRow: {
         borderTopWidth: 1,
         borderTopColor: '#f0f0f0',

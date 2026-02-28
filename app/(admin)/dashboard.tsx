@@ -7,12 +7,21 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { adminApi } from '../../services/api';
 
 const STAT_CARDS = [
-    { key: 'totalUsers', label: 'Total Users', icon: 'account-group', color: '#3b82f6' },
-    { key: 'totalVenues', label: 'Active Venues', icon: 'stadium', color: '#10b981' },
-    { key: 'totalBookings', label: 'Total Bookings', icon: 'calendar-check', color: '#8b5cf6' },
-    { key: 'todayBookings', label: "Today's Bookings", icon: 'calendar-today', color: '#FF5722' },
-    { key: 'pendingBookings', label: 'Pending', icon: 'clock-alert', color: '#f59e0b' },
-    { key: 'totalRevenue', label: 'Revenue', icon: 'currency-inr', color: '#06b6d4' },
+    { key: 'totalUsers', label: 'Total Users', icon: 'account-group', color: '#3b82f6', route: '/(admin)/users' },
+    { key: 'totalVenues', label: 'Active Venues', icon: 'stadium', color: '#10b981', route: '/(admin)/venues' },
+    { key: 'totalBookings', label: 'Total Bookings', icon: 'calendar-check', color: '#8b5cf6', route: '/(admin)/bookings' },
+    { key: 'todayBookings', label: "Today's Bookings", icon: 'calendar-today', color: '#FF5722', route: '/(admin)/bookings' },
+    { key: 'pendingBookings', label: 'Pending', icon: 'clock-alert', color: '#f59e0b', route: '/(admin)/bookings' },
+    { key: 'totalRevenue', label: 'Revenue', icon: 'currency-inr', color: '#06b6d4', route: '/(admin)/bookings' },
+];
+
+const PERIOD_FILTERS = [
+    { key: '24h', label: '24h' },
+    { key: '1week', label: '1 Week' },
+    { key: '1month', label: '1 Month' },
+    { key: '6months', label: '6 Months' },
+    { key: '1year', label: '1 Year' },
+    { key: 'all', label: 'All Time' },
 ];
 
 const STATUS_COLOR: Record<string, string> = {
@@ -34,16 +43,38 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Filtering state for Bookings & Revenue
+    const [period, setPeriod] = useState('all');
+    const [filteredStats, setFilteredStats] = useState({ bookingsCount: 0, revenue: 0 });
+
     const loadData = useCallback(async () => {
         try {
-            const res = await adminApi.getDashboard();
-            if (res.success) { setStats(res.data.stats); setRecent(res.data.recentBookings); }
-        } finally { setLoading(false); setRefreshing(false); }
-    }, []);
+            const [baseRes, filterRes] = await Promise.all([
+                adminApi.getDashboard(),
+                adminApi.getFilteredStats(period)
+            ]);
 
-    useEffect(() => { loadData(); }, []);
+            if (baseRes.success) {
+                setStats(baseRes.data.stats);
+            }
+            if (filterRes.success) {
+                setFilteredStats({
+                    bookingsCount: filterRes.data.bookingsCount,
+                    revenue: filterRes.data.revenue
+                });
+                setRecent(filterRes.data.bookings);
+            }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [period]);
 
-    if (loading) return <View style={styles.loader}><ActivityIndicator size="large" color="#FF5722" /></View>;
+    useEffect(() => {
+        loadData();
+    }, [loadData, period]);
+
+    if (loading && !stats) return <View style={styles.loader}><ActivityIndicator size="large" color="#FF5722" /></View>;
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -67,36 +98,72 @@ export default function AdminDashboard() {
                     ))}
                 </View>
 
-                {/* Stats Grid */}
+                {/* Filters */}
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Overview</Text>
                 </View>
-                <View style={styles.statsGrid}>
-                    {STAT_CARDS.map((card) => (
-                        <View key={card.key} style={styles.statCard}>
-                            <View style={[styles.statIconWrap, { backgroundColor: card.color + '15' }]}>
-                                <MaterialCommunityIcons name={card.icon as any} size={22} color={card.color} />
-                            </View>
-                            <Text style={styles.statValue}>
-                                {card.key === 'totalRevenue'
-                                    ? `₹${((stats)?.[card.key] || 0).toLocaleString('en-IN')}`
-                                    : (stats)?.[card.key] ?? 0}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroller}>
+                    {PERIOD_FILTERS.map((f) => (
+                        <TouchableOpacity
+                            key={f.key}
+                            style={[styles.filterChip, period === f.key && styles.filterChipActive]}
+                            onPress={() => setPeriod(f.key)}
+                        >
+                            <Text style={[styles.filterChipText, period === f.key && styles.filterChipTextActive]}>
+                                {f.label}
                             </Text>
-                            <Text style={styles.statLabel}>{card.label}</Text>
-                        </View>
+                        </TouchableOpacity>
                     ))}
+                </ScrollView>
+
+                {/* Stats Grid */}
+                <View style={styles.statsGrid}>
+                    {STAT_CARDS.map((card) => {
+                        let displayValue = (stats)?.[card.key] ?? 0;
+
+                        // Override with filtered values if Bookings or Revenue
+                        if (card.key === 'totalBookings') displayValue = filteredStats.bookingsCount;
+                        if (card.key === 'totalRevenue') displayValue = filteredStats.revenue;
+
+                        const isRevenue = card.key === 'totalRevenue';
+
+                        return (
+                            <TouchableOpacity
+                                key={card.key}
+                                style={styles.statCard}
+                                onPress={() => router.push(card.route as any)}
+                                activeOpacity={0.8}
+                            >
+                                <View style={styles.statCardInner}>
+                                    <View style={[styles.statIconWrap, { backgroundColor: card.color + '15' }]}>
+                                        <MaterialCommunityIcons name={card.icon as any} size={22} color={card.color} />
+                                    </View>
+                                    <MaterialCommunityIcons name="chevron-right" size={16} color="#ccc" />
+                                </View>
+
+                                <Text style={styles.statValue}>
+                                    {isRevenue
+                                        ? `₹${displayValue.toLocaleString('en-IN')}`
+                                        : displayValue}
+                                </Text>
+                                <Text style={styles.statLabel}>
+                                    {card.label} {['totalBookings', 'totalRevenue'].includes(card.key) && period !== 'all' ? `(${PERIOD_FILTERS.find(f => f.key === period)?.label})` : ''}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </View>
 
                 {/* Recent Bookings */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Recent Bookings</Text>
+                    <Text style={styles.sectionTitle}>Recent Bookings {period !== 'all' && `(${PERIOD_FILTERS.find(f => f.key === period)?.label})`}</Text>
                     <TouchableOpacity onPress={() => router.push('/(admin)/bookings' as any)}>
                         <Text style={styles.seeAll}>See all</Text>
                     </TouchableOpacity>
                 </View>
                 <View style={styles.listSection}>
                     {recent.length === 0 ? (
-                        <Text style={styles.empty}>No bookings yet</Text>
+                        <Text style={styles.empty}>No bookings found for this period</Text>
                     ) : (
                         recent.map((b) => (
                             <TouchableOpacity key={b._id} style={styles.bookingCard} onPress={() => router.push('/(admin)/bookings' as any)}>
@@ -143,9 +210,30 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#111' },
     seeAll: { fontSize: 13, color: '#FF5722', fontWeight: '600' },
 
+    // Filters
+    filterScroller: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+    filterChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: '#e5e7eb',
+    },
+    filterChipActive: {
+        backgroundColor: '#FF5722',
+    },
+    filterChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#4b5563',
+    },
+    filterChipTextActive: {
+        color: '#fff',
+    },
+
     // Stats
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 10 },
     statCard: { ...S.card, width: '47%', marginBottom: 0, alignItems: 'flex-start', gap: 6 },
+    statCardInner: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'center' },
     statIconWrap: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
     statValue: { fontSize: 22, fontWeight: 'bold', color: '#111' },
     statLabel: { fontSize: 12, color: '#888' },
@@ -162,3 +250,4 @@ const styles = StyleSheet.create({
     badgeText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
     empty: { textAlign: 'center', color: '#999', padding: 24, fontSize: 14 },
 });
+

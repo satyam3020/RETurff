@@ -12,18 +12,27 @@ const TYPE_ICONS: Record<string, { name: any; color: string }> = {
     success: { name: 'checkmark-circle', color: '#10b981' },
 };
 
-const BLANK = { title: '', message: '', type: 'info', isGlobal: true };
+const BLANK = { title: '', message: '', type: 'info', isGlobal: true, targetUserId: null as string | null };
 
 export default function AdminNotifications() {
     const [notifications, setNotifications] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState<any>(BLANK);
     const [saving, setSaving] = useState(false);
+    const [userSearchQuery, setUserSearchQuery] = useState('');
 
     const load = useCallback(async () => {
-        try { const r = await adminApi.getNotifications(); if (r.success) setNotifications(r.data); }
+        try {
+            const [notifsRes, usersRes] = await Promise.all([
+                adminApi.getNotifications(),
+                adminApi.getUsers(),
+            ]);
+            if (notifsRes.success) setNotifications(notifsRes.data);
+            if (usersRes.success) setUsers(usersRes.data);
+        }
         finally { setLoading(false); setRefreshing(false); }
     }, []);
 
@@ -32,8 +41,14 @@ export default function AdminNotifications() {
 
     const handleCreate = async () => {
         if (!form.title || !form.message) { Alert.alert('Required', 'Title and message are required.'); return; }
+        if (!form.isGlobal && !form.targetUserId) { Alert.alert('Required', 'Please select a specific user.'); return; }
+
         setSaving(true);
-        const r = await adminApi.createNotification(form);
+        const r = await adminApi.createNotification({
+            ...form,
+            targetUserId: form.isGlobal ? null : form.targetUserId
+        });
+
         if (r.success) { setShowModal(false); setForm(BLANK); load(); }
         setSaving(false);
     };
@@ -51,9 +66,22 @@ export default function AdminNotifications() {
 
     const TYPE_OPTIONS = ['info', 'promo', 'warning', 'success'];
 
+    const filteredUsers = users.filter(u =>
+        u.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        u.phone?.includes(userSearchQuery)
+    );
+
     const renderItem = ({ item }: { item: any }) => {
         const icon = TYPE_ICONS[item.type] || TYPE_ICONS.info;
         const timeStr = new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+        // Find targeted user name if applicable
+        let targetUserName = 'Targeted User';
+        if (!item.isGlobal && item.targetUserId) {
+            const u = users.find(u => u._id === item.targetUserId);
+            if (u) targetUserName = u.name;
+        }
+
         return (
             <View style={styles.card}>
                 <View style={[styles.iconBox, { backgroundColor: icon.color + '15' }]}>
@@ -69,7 +97,7 @@ export default function AdminNotifications() {
                         <View style={[styles.typeBadge, { backgroundColor: icon.color + '15' }]}>
                             <Text style={[styles.typeBadgeText, { color: icon.color }]}>{item.type}</Text>
                         </View>
-                        <Text style={styles.audience}>{item.isGlobal ? '🌍 All Users' : '👤 Targeted'}</Text>
+                        <Text style={styles.audience}>{item.isGlobal ? '🌍 All Users' : `👤 ${targetUserName}`}</Text>
                     </View>
                 </View>
                 <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item._id)}>
@@ -81,7 +109,7 @@ export default function AdminNotifications() {
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowModal(true)}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => { setForm(BLANK); setUserSearchQuery(''); setShowModal(true); }}>
                 <Ionicons name="add-circle-outline" size={20} color="#fff" />
                 <Text style={styles.addBtnText}>Send Notification</Text>
             </TouchableOpacity>
@@ -132,12 +160,67 @@ export default function AdminNotifications() {
                             <Text style={styles.label}>Audience</Text>
                             <View style={styles.typeRow}>
                                 {[{ val: true, label: '🌍 All Users' }, { val: false, label: '👤 Specific User' }].map(o => (
-                                    <TouchableOpacity key={String(o.val)} style={[styles.typeOption, { flex: 1 }, form.isGlobal === o.val && { borderColor: '#FF5722', backgroundColor: '#FF572210' }]} onPress={() => setForm((p: any) => ({ ...p, isGlobal: o.val }))}>
+                                    <TouchableOpacity key={String(o.val)} style={[styles.typeOption, { flex: 1 }, form.isGlobal === o.val && { borderColor: '#FF5722', backgroundColor: '#FF572210' }]} onPress={() => {
+                                        setForm((p: any) => ({ ...p, isGlobal: o.val, targetUserId: o.val ? null : p.targetUserId }));
+                                    }}>
                                         <Text style={[styles.typeOptionText, form.isGlobal === o.val && { color: '#FF5722', fontWeight: '700' }]}>{o.label}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
                         </View>
+
+                        {/* Specific User Selection UI */}
+                        {!form.isGlobal && (
+                            <View style={styles.field}>
+                                <Text style={styles.label}>Select User *</Text>
+
+                                {form.targetUserId ? (
+                                    <View style={styles.selectedUserBox}>
+                                        <View>
+                                            <Text style={styles.selectedUserName}>{users.find(u => u._id === form.targetUserId)?.name || 'Unknown'}</Text>
+                                            <Text style={styles.selectedUserPhone}>{users.find(u => u._id === form.targetUserId)?.phone || ''}</Text>
+                                        </View>
+                                        <TouchableOpacity onPress={() => setForm((p: any) => ({ ...p, targetUserId: null }))}>
+                                            <Ionicons name="close-circle" size={24} color="#aaa" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={styles.userPickerContainer}>
+                                        <TextInput
+                                            style={[styles.input, { marginBottom: 8 }]}
+                                            placeholder="Search by name or phone..."
+                                            placeholderTextColor="#bbb"
+                                            value={userSearchQuery}
+                                            onChangeText={setUserSearchQuery}
+                                        />
+                                        <View style={styles.userListScroll}>
+                                            {filteredUsers.slice(0, 10).map((user) => (
+                                                <TouchableOpacity
+                                                    key={user._id}
+                                                    style={styles.userOptionItem}
+                                                    onPress={() => setForm((p: any) => ({ ...p, targetUserId: user._id }))}
+                                                >
+                                                    <View style={styles.userAvatar}>
+                                                        <Text style={styles.userAvatarText}>{user.name?.charAt(0)?.toUpperCase() || 'U'}</Text>
+                                                    </View>
+                                                    <View>
+                                                        <Text style={styles.userOptionName}>{user.name}</Text>
+                                                        <Text style={styles.userOptionPhone}>{user.phone}</Text>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            ))}
+                                            {filteredUsers.length === 0 && (
+                                                <Text style={styles.noUsersText}>No users found</Text>
+                                            )}
+                                            {filteredUsers.length > 10 && (
+                                                <Text style={styles.moreUsersText}>+ {filteredUsers.length - 10} more. Refine search.</Text>
+                                            )}
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
                         <TouchableOpacity style={styles.sendBtn} onPress={handleCreate} disabled={saving}>
                             <Text style={styles.sendBtnText}>{saving ? 'Sending...' : 'Send Notification'}</Text>
                         </TouchableOpacity>
@@ -179,4 +262,18 @@ const styles = StyleSheet.create({
     typeOptionText: { fontSize: 12, color: '#aaa', fontWeight: '600', textTransform: 'capitalize' },
     sendBtn: { backgroundColor: '#FF5722', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
     sendBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+    // User Selector
+    selectedUserBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#FF5722', borderRadius: 10, padding: 12 },
+    selectedUserName: { fontSize: 15, fontWeight: '600', color: '#111' },
+    selectedUserPhone: { fontSize: 12, color: '#666', marginTop: 2 },
+    userPickerContainer: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden' },
+    userListScroll: { maxHeight: 200 },
+    userOptionItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+    userAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+    userAvatarText: { fontSize: 14, fontWeight: 'bold', color: '#555' },
+    userOptionName: { fontSize: 14, fontWeight: '600', color: '#333' },
+    userOptionPhone: { fontSize: 12, color: '#888' },
+    noUsersText: { textAlign: 'center', padding: 12, color: '#999', fontSize: 13 },
+    moreUsersText: { textAlign: 'center', padding: 8, color: '#FF5722', fontSize: 12, fontWeight: '500', backgroundColor: '#fff3e0' },
 });

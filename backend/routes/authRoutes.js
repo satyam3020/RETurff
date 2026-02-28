@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { register, login, getMe, refreshToken, registerValidation, loginValidation } = require('../controllers/authController');
 const {
     register,
     login,
@@ -18,6 +19,8 @@ router.post('/register', registerValidation, register);
 // POST /api/auth/login  (rate limited)
 router.post('/login', loginRateLimiter, loginValidation, login);
 
+// POST /api/auth/refresh-token  (public — refresh token proves identity)
+router.post('/refresh-token', refreshToken);
 // POST /api/auth/forgot-password
 router.post('/forgot-password', forgotPassword);
 
@@ -28,3 +31,4 @@ router.post('/reset-password', resetPassword);
 router.get('/me', authMiddleware, getMe);
 
 module.exports = router;
+

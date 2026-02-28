@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
-    KeyboardAvoidingView, Platform, Alert, ScrollView,
+    KeyboardAvoidingView, Platform, Alert, ScrollView, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -19,6 +19,14 @@ export default function SignupScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // ── Keyboard visibility tracker ────────────────
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+    useEffect(() => {
+        const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+        return () => { show.remove(); hide.remove(); };
+    }, []);
 
     const validate = () => {
         if (name.trim().length < 2) {
@@ -48,7 +56,7 @@ export default function SignupScreen() {
                 Alert.alert('Registration Failed', res.message || 'Could not create account.');
                 return;
             }
-            await saveAuthData(res.token, res.user);
+            await saveAuthData(res.token, res.user, res.refreshToken);
             router.replace('/(tabs)');
         } catch (e: any) {
             Alert.alert('Error', 'Something went wrong. Please check your network and try again.');

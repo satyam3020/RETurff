@@ -2,17 +2,28 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 
+// ─── Helpers ────────────────────────────────────────
+const signAccessToken = (userId) =>
+    jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRES_IN || '15m',
 // ─── Helper ─────────────────────────────────────────
 const signToken = (userId) =>
     jwt.sign({ id: userId }, process.env.JWT_SECRET || 'fallback_secret', {
         expiresIn: process.env.JWT_EXPIRE || '7d',
     });
 
-const sendToken = (res, user, statusCode = 200) => {
-    const token = signToken(user._id);
+const signRefreshToken = (userId) =>
+    jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, {
+        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+    });
+
+const sendTokens = (res, user, statusCode = 200) => {
+    const token = signAccessToken(user._id);
+    const refreshToken = signRefreshToken(user._id);
     res.status(statusCode).json({
         success: true,
         token,
+        refreshToken,
         user: {
             id: user._id,
             name: user.name,
@@ -67,7 +78,7 @@ const register = async (req, res, next) => {
             passwordHash: password, // pre-save hook hashes this
         });
 
-        sendToken(res, user, 201);
+        sendTokens(res, user, 201);
     } catch (error) {
         next(error);
     }
@@ -100,7 +111,55 @@ const login = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Invalid phone or password.' });
         }
 
-        sendToken(res, user);
+        sendTokens(res, user);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * POST /api/auth/refresh-token
+ * Accepts { refreshToken } in body, returns fresh accessToken + rotated refreshToken
+ */
+const refreshToken = async (req, res, next) => {
+    try {
+        const { refreshToken: token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ success: false, message: 'Refresh token is required.' });
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+        } catch (err) {
+            return res.status(401).json({ success: false, message: 'Invalid or expired refresh token.' });
+        }
+
+        const user = await User.findById(decoded.id).select('-passwordHash');
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'User not found.' });
+        }
+
+        if (user.isBlocked) {
+            return res.status(403).json({ success: false, message: 'Account blocked. Contact support.' });
+        }
+
+        // Issue fresh tokens (rotation)
+        const newAccessToken = signAccessToken(user._id);
+        const newRefreshToken = signRefreshToken(user._id);
+
+        res.json({
+            success: true,
+            token: newAccessToken,
+            refreshToken: newRefreshToken,
+            user: {
+                id: user._id,
+                name: user.name,
+                phone: user.phone,
+                role: user.role,
+            },
+        });
     } catch (error) {
         next(error);
     }
@@ -114,6 +173,7 @@ const getMe = async (req, res) => {
     res.json({ success: true, user: req.user });
 };
 
+module.exports = { register, login, getMe, refreshToken, registerValidation, loginValidation };
 /**
  * POST /api/auth/forgot-password
  */

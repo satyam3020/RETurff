@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { COLORS, SPACING } from '../../utils/theme';
 import { getAuthUser } from '../../services/api';
+
+// Turf location coordinates
+const TURF_LOCATION = {
+    latitude: 19.299394,
+    longitude: 72.875842,
+    name: 'RETurf - Mira Road',
+};
 
 export default function HomeHeader() {
     const [greeting, setGreeting] = useState('Hey');
@@ -23,6 +31,16 @@ export default function HomeHeader() {
         });
     }, []);
 
+    const openTurfLocation = () => {
+        const { latitude, longitude, name } = TURF_LOCATION;
+        const label = encodeURIComponent(name);
+        const url = Platform.select({
+            ios: `maps:0,0?q=${label}@${latitude},${longitude}`,
+            android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
+        });
+        if (url) Linking.openURL(url);
+    };
+
     return (
         <View style={styles.container}>
             {/* Logo + Greeting */}
@@ -41,16 +59,14 @@ export default function HomeHeader() {
             {/* Actions on Right */}
             <View style={styles.rightSection}>
                 {/* Location pill */}
-                <TouchableOpacity style={styles.locationPill}>
+                <TouchableOpacity style={styles.locationPill} onPress={openTurfLocation}>
                     <Ionicons name="location-sharp" size={13} color="#FF5722" />
                     <Text style={styles.locationText}>Nearby</Text>
                 </TouchableOpacity>
 
-                {/* Notification bell */}
-                <TouchableOpacity style={styles.iconButton}>
-                    <Ionicons name="notifications-outline" size={22} color="#444" />
-                    {/* Red dot for unread */}
-                    <View style={styles.badge} />
+                {/* History icon */}
+                <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/booking-history')}>
+                    <Ionicons name="time-outline" size={22} color="#444" />
                 </TouchableOpacity>
             </View>
         </View>
@@ -117,16 +133,5 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         color: '#FF5722',
-    },
-    badge: {
-        position: 'absolute',
-        top: 6,
-        right: 6,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#FF5722',
-        borderWidth: 1.5,
-        borderColor: '#fff',
     },
 });

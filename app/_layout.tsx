@@ -1,10 +1,27 @@
 // Root layout - sets up expo-router and error boundary
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Alert } from 'react-native';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { BookingProvider } from '../context/BookingContext';
+import sessionEvents from '../services/sessionEvents';
 
 export default function RootLayout() {
+    // ── Listen for session expiry and redirect to login ──
+    useEffect(() => {
+        const onSessionExpired = () => {
+            Alert.alert(
+                'Session Expired',
+                'Your session has expired. Please login again.',
+                [{ text: 'OK', onPress: () => router.replace('/login') }],
+            );
+        };
+
+        sessionEvents.on('session-expired', onSessionExpired);
+        return () => { sessionEvents.off('session-expired', onSessionExpired); };
+    }, []);
+
     return (
         <>
             <BookingProvider>
@@ -25,9 +42,24 @@ export default function RootLayout() {
                                 presentation: 'card',
                             }}
                         />
+                        <Stack.Screen
+                            name="booking-history"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="booking-detail"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
                     </Stack>
                 </ErrorBoundary>
             </BookingProvider>
         </>
     );
 }
+

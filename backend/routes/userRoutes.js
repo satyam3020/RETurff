@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const {
-    getMyBookings, createBooking, getProfile, updateProfile,
-    getVenues, getAvailableSlots, getNotifications, markNotificationRead,
+    getMyBookings, createBooking, getBookingById, getBookingHistory, getProfile, updateProfile,
+    getVenues, getAvailableSlots, getVenuePitches, getNotifications, markNotificationRead,
     bookingValidation,
 } = require('../controllers/userController');
 
@@ -17,9 +17,12 @@ router.put('/profile', updateProfile);
 // ─── Venues (read-only for users) ────────────────────
 router.get('/venues', getVenues);
 router.get('/venues/:id/slots', getAvailableSlots);
+router.get('/venues/:id/pitches', getVenuePitches);
 
 // ─── Bookings ────────────────────────────────────────
 router.get('/bookings', getMyBookings);
+router.get('/bookings/history', getBookingHistory);
+router.get('/bookings/:id', getBookingById);
 router.post('/bookings', bookingValidation, createBooking);
 
 // ─── Notifications ───────────────────────────────────

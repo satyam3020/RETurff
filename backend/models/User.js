@@ -49,6 +49,16 @@ const userSchema = new mongoose.Schema(
             gender: { type: String, default: null },
             interestedSports: { type: [String], default: [] },
         },
+        bio: {
+            type: String,
+            default: null,
+        },
+        promptsAnswered: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5,
+        },
     },
     { timestamps: true }
 );

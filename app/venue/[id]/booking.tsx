@@ -13,7 +13,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING } from '../../../utils/theme';
 import { getAvailableSlots } from '../../../services/api';
-import { getLocalSlots, markSlotBooked } from '../../../services/slotStore';
 
 // ─── Generate next N dates starting from today ────────────────────────────────
 const generateDates = (count = 7) => {
@@ -63,15 +62,39 @@ export default function SlotBookingScreen() {
     const surface = (params.surface as string) || '';
 
     const [selectedDateIndex, setSelectedDateIndex] = useState(0);
-    const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+    const [selectedSlots, setSelectedSlots] = useState<Slot[]>([]);
     const [slots, setSlots] = useState<Slot[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     const selectedDate = DATES[selectedDateIndex];
 
+    // ── Helper: parse "H:MM AM/PM" to minutes since midnight ────────────────
+    const parseTimeToMinutes = (time: string): number => {
+        const parts = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!parts) return 0;
+        let hour = parseInt(parts[1], 10);
+        const min = parseInt(parts[2], 10);
+        const period = parts[3].toUpperCase();
+        if (period === 'AM' && hour === 12) hour = 0;
+        if (period === 'PM' && hour !== 12) hour += 12;
+        return hour * 60 + min;
+    };
+
+    // ── Check if selected date is today ─────────────────────────────────────
+    const isToday = selectedDate.isoDate === DATES[0].isoDate;
+
+    // ── Filter out expired slots for today ──────────────────────────────────
+    const activeSlots = isToday
+        ? slots.filter((slot) => {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            return parseTimeToMinutes(slot.startTime) > currentMinutes;
+        })
+        : slots;
+
     // ── Group slots by time-of-day ──────────────────────────────────────────
-    const groupedSlots: GroupedSlots = slots.reduce((acc, slot) => {
+    const groupedSlots: GroupedSlots = activeSlots.reduce((acc, slot) => {
         const hour = parseInt(slot.startTime.split(':')[0], 10);
         let group = 'Evening Slots';
         if (hour < 6) group = 'Mid-Night Slots';
@@ -82,43 +105,15 @@ export default function SlotBookingScreen() {
         return acc;
     }, {} as GroupedSlots);
 
-    // ── Fetch slots: local store first, backend fallback ──────────────────
+    // ── Fetch slots directly from backend with sport + surface filter ─────────
     const fetchSlots = useCallback(async () => {
         if (!venueId) return;
         setIsLoading(true);
-        setSelectedSlot(null);
+        setSelectedSlots([]);
         try {
-            // 1️⃣  Check local store (admin-generated slots)
-            const localSlots = await getLocalSlots({
-                venueId,
-                date: selectedDate.isoDate,
-                sport,
-                surface,
-            });
-
-            if (localSlots.length > 0) {
-                setSlots(localSlots.map(s => ({
-                    _id: s._id,
-                    startTime: s.startTime,
-                    endTime: s.endTime,
-                    price: s.price,
-                    isBooked: s.isBooked,
-                    isBlocked: s.isBlocked,
-                    surface: s.surface,
-                    sport: s.sport,
-                })));
-                return;
-            }
-
-            // 2️⃣  Fallback to backend
-            const res = await getAvailableSlots(venueId, selectedDate.isoDate);
+            const res = await getAvailableSlots(venueId, selectedDate.isoDate, sport, surface);
             if (res.success && Array.isArray(res.data)) {
-                const filtered = res.data.filter((s: Slot) => {
-                    const sportMatch = !s.sport || s.sport === sport;
-                    const surfaceMatch = !s.surface || s.surface === surface;
-                    return sportMatch && surfaceMatch;
-                });
-                setSlots(filtered.length > 0 ? filtered : res.data);
+                setSlots(res.data);
             } else {
                 setSlots([]);
             }
@@ -132,31 +127,38 @@ export default function SlotBookingScreen() {
 
     useEffect(() => { fetchSlots(); }, [fetchSlots]);
 
-    const availableCount = slots.filter((s) => !s.isBooked && !s.isBlocked).length;
+    const availableCount = activeSlots.filter((s) => !s.isBooked && !s.isBlocked).length;
+    const totalPrice = selectedSlots.reduce((sum, s) => sum + s.price, 0);
 
-    const handleProceed = () => {
-        if (selectedSlot) setShowConfirmModal(true);
+    // Toggle a slot in/out of selectedSlots
+    const toggleSlot = (slot: Slot) => {
+        setSelectedSlots(prev =>
+            prev.find(s => s._id === slot._id)
+                ? prev.filter(s => s._id !== slot._id)
+                : [...prev, slot]
+        );
     };
 
-    // Navigate to summary and mark slot booked locally
-    const handleConfirmSlots = async () => {
-        if (!selectedSlot) return;
+    const handleProceed = () => {
+        if (selectedSlots.length > 0) setShowConfirmModal(true);
+    };
+
+    // Navigate to summary with all selected slots
+    const handleConfirmSlots = () => {
+        if (selectedSlots.length === 0) return;
         setShowConfirmModal(false);
-        // Mark booked in local store so it shows as taken for other users
-        await markSlotBooked(selectedSlot._id);
         router.push({
             pathname: `/venue/${venueId}/summary` as any,
             params: {
                 venueId,
                 venueName,
                 venueLocation,
-                slotId: selectedSlot._id,
+                // Pass all selected slots as JSON string
+                slotsJson: JSON.stringify(selectedSlots),
                 date: selectedDate.label,
-                startTime: selectedSlot.startTime,
-                endTime: selectedSlot.endTime,
                 sport,
-                surface: selectedSlot.surface || surface,
-                price: String(selectedSlot.price),
+                surface,
+                totalPrice: String(totalPrice),
             },
         });
     };
@@ -174,14 +176,7 @@ export default function SlotBookingScreen() {
                     <Text style={styles.headerTitle}>{venueName}</Text>
                     {!!venueLocation && <Text style={styles.headerSubtitle}>{venueLocation}</Text>}
                 </View>
-                {selectedSlot && (
-                    <View style={styles.cartBadge}>
-                        <Ionicons name="cart" size={20} color={COLORS.white} />
-                        <View style={styles.cartCount}>
-                            <Text style={styles.cartCountText}>1</Text>
-                        </View>
-                    </View>
-                )}
+                <View style={{ width: 36 }} />
             </View>
 
             {/* Date Selector */}
@@ -256,7 +251,7 @@ export default function SlotBookingScreen() {
                             </View>
                             {groupSlots.map((slot) => {
                                 const active = isSlotActive(slot);
-                                const isSelected = selectedSlot?._id === slot._id;
+                                const isSelected = !!selectedSlots.find(s => s._id === slot._id);
                                 return (
                                     <View key={slot._id} style={[styles.slotCard, isSelected && styles.slotCardSelected]}>
                                         <View style={styles.slotInfo}>
@@ -270,7 +265,7 @@ export default function SlotBookingScreen() {
                                         {active ? (
                                             <TouchableOpacity
                                                 style={[styles.slotButton, isSelected && styles.slotButtonSelected]}
-                                                onPress={() => setSelectedSlot(isSelected ? null : slot)}
+                                                onPress={() => toggleSlot(slot)}
                                             >
                                                 <Ionicons
                                                     name={isSelected ? 'remove-circle' : 'add-circle'}
@@ -296,11 +291,13 @@ export default function SlotBookingScreen() {
             </ScrollView>
 
             {/* Bottom Bar */}
-            {selectedSlot && (
+            {selectedSlots.length > 0 && (
                 <View style={styles.bottomBar}>
                     <View style={styles.bottomBarLeft}>
-                        <Text style={styles.bottomBarSlots}>1 Slot · {selectedSlot.startTime} – {selectedSlot.endTime}</Text>
-                        <Text style={styles.bottomBarPrice}>₹{selectedSlot.price} + charges</Text>
+                        <Text style={styles.bottomBarSlots}>
+                            {selectedSlots.length} Slot{selectedSlots.length > 1 ? 's' : ''} Selected
+                        </Text>
+                        <Text style={styles.bottomBarPrice}>₹{totalPrice} + charges</Text>
                     </View>
                     <TouchableOpacity style={styles.proceedButton} onPress={handleProceed}>
                         <Text style={styles.proceedButtonText}>PROCEED</Text>
@@ -310,11 +307,11 @@ export default function SlotBookingScreen() {
             )}
 
             {/* Confirmation Modal */}
-            {showConfirmModal && selectedSlot && (
+            {showConfirmModal && selectedSlots.length > 0 && (
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Confirm Your Selection</Text>
+                            <Text style={styles.modalTitle}>Confirm {selectedSlots.length} Slot{selectedSlots.length > 1 ? 's' : ''}</Text>
                             <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
                                 <Ionicons name="close" size={24} color="#333" />
                             </TouchableOpacity>
@@ -322,18 +319,19 @@ export default function SlotBookingScreen() {
 
                         <Text style={styles.modalDate}>{selectedDate.label}</Text>
 
-                        <View style={styles.modalSlot}>
-                            <Text style={styles.modalSlotTime}>{selectedSlot.startTime} – {selectedSlot.endTime}</Text>
-                            <Text style={styles.modalSlotSurface}>{selectedSlot.surface || surface} — ₹{selectedSlot.price}</Text>
-                        </View>
+                        {selectedSlots.map((slot, i) => (
+                            <View key={slot._id} style={styles.modalSlot}>
+                                <Text style={styles.modalSlotTime}>{slot.startTime} – {slot.endTime}</Text>
+                                <Text style={styles.modalSlotSurface}>{slot.surface || surface} — ₹{slot.price}</Text>
+                            </View>
+                        ))}
 
-                        <View style={styles.modalNote}>
-                            <MaterialCommunityIcons name="information" size={16} color="#FF9800" />
-                            <Text style={styles.modalNoteText}>24-hour format for slots is used.</Text>
+                        <View style={[styles.modalSlot, { borderBottomWidth: 0, marginTop: 4 }]}>
+                            <Text style={[styles.modalSlotTime, { color: '#FF5722' }]}>Total: ₹{totalPrice}</Text>
                         </View>
 
                         <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmSlots}>
-                            <Text style={styles.confirmButtonText}>CONFIRM SLOT</Text>
+                            <Text style={styles.confirmButtonText}>CONFIRM {selectedSlots.length} SLOT{selectedSlots.length > 1 ? 'S' : ''}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -357,18 +355,6 @@ const styles = StyleSheet.create({
     headerCenter: { flex: 1, marginLeft: SPACING.md },
     headerTitle: { fontSize: 14, fontWeight: '600', color: '#333' },
     headerSubtitle: { fontSize: 11, color: '#666' },
-    cartBadge: {
-        backgroundColor: '#FF5722',
-        width: 36, height: 36, borderRadius: 18,
-        alignItems: 'center', justifyContent: 'center',
-        position: 'relative', marginLeft: SPACING.sm,
-    },
-    cartCount: {
-        position: 'absolute', top: -4, right: -4,
-        backgroundColor: '#F44336', width: 18, height: 18,
-        borderRadius: 9, alignItems: 'center', justifyContent: 'center',
-    },
-    cartCountText: { fontSize: 10, fontWeight: 'bold', color: COLORS.white },
     dateSection: {
         backgroundColor: COLORS.white,
         paddingVertical: SPACING.md,

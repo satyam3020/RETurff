@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
-    TouchableOpacity, Alert,
+    TouchableOpacity, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { clearAuthData, getAuthUser } from '../../services/api';
+import { router, useFocusEffect } from 'expo-router';
+import { clearAuthData, getAuthUser, userApi } from '../../services/api';
 import { SPACING, BORDER_RADIUS } from '../../utils/theme';
 
 // ─── Menu data ─────────────────────────────────────────────────────────────
@@ -40,16 +40,40 @@ export default function ProfileScreen() {
     const [userName, setUserName] = useState('');
     const [userPhone, setUserPhone] = useState('');
     const [userEmail, setUserEmail] = useState('');
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [isVerified, setIsVerified] = useState(false);
 
-    useEffect(() => {
-        getAuthUser().then((user) => {
-            if (user) {
-                if (user.name) setUserName(user.name);
-                if (user.phone) setUserPhone(user.phone);
-                if (user.email) setUserEmail(user.email);
+    const loadProfile = useCallback(async () => {
+        // First load from local cache for instant display
+        const cachedUser = await getAuthUser();
+        if (cachedUser) {
+            if (cachedUser.name) setUserName(cachedUser.name);
+            if (cachedUser.phone) setUserPhone(cachedUser.phone);
+            if (cachedUser.email) setUserEmail(cachedUser.email);
+            if (cachedUser.profileImage) setProfileImage(cachedUser.profileImage);
+        }
+        // Then refresh from backend for latest data
+        try {
+            const res = await userApi.getProfile();
+            if (res.success && res.data) {
+                const u = res.data;
+                if (u.name) setUserName(u.name);
+                if (u.phone) setUserPhone(u.phone);
+                if (u.profileImage) setProfileImage(u.profileImage);
+                else setProfileImage(null);
+                // Compute verified status
+                const verified = !!u.profileImage
+                    && (u.promptsAnswered || 0) >= 5
+                    && !!u.bio
+                    && !!u.preferences?.age && !!u.preferences?.gender
+                    && Array.isArray(u.preferences?.interestedSports) && u.preferences.interestedSports.length > 0;
+                setIsVerified(verified);
             }
-        });
+        } catch { /* backend may be offline */ }
     }, []);
+
+    // Refresh every time the screen comes into focus (e.g. after uploading photo)
+    useFocusEffect(useCallback(() => { loadProfile(); }, [loadProfile]));
 
     const handleLogout = () => {
         Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -107,14 +131,34 @@ export default function ProfileScreen() {
                         <Ionicons name="settings-outline" size={22} color="rgba(255,255,255,0.85)" />
                     </TouchableOpacity>
 
-                    {/* Avatar with initials */}
-                    <View style={styles.avatarRing}>
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarInitials}>{getInitials(userName)}</Text>
+                    {/* Avatar — tappable to change photo */}
+                    <TouchableOpacity
+                        style={styles.avatarRing}
+                        onPress={() => router.push('/profile/upload-photo')}
+                        activeOpacity={0.8}
+                    >
+                        {profileImage ? (
+                            <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+                        ) : (
+                            <View style={styles.avatar}>
+                                <Text style={styles.avatarInitials}>{getInitials(userName)}</Text>
+                            </View>
+                        )}
+                        {/* Camera badge */}
+                        <View style={styles.cameraBadge}>
+                            <MaterialCommunityIcons name="camera" size={12} color="#fff" />
                         </View>
-                    </View>
+                    </TouchableOpacity>
 
-                    <Text style={styles.heroName}>{userName || 'User'}</Text>
+                    <View style={styles.nameRow}>
+                        <Text style={styles.heroName}>{userName || 'User'}</Text>
+                        {isVerified && (
+                            <View style={styles.verifiedBadge}>
+                                <MaterialCommunityIcons name="shield-check" size={16} color="#fff" />
+                                <Text style={styles.verifiedBadgeText}>Verified</Text>
+                            </View>
+                        )}
+                    </View>
                     {userPhone ? (
                         <View style={styles.infoPill}>
                             <Ionicons name="call-outline" size={12} color="rgba(255,255,255,0.9)" />
@@ -138,7 +182,7 @@ export default function ProfileScreen() {
                 {/* ── STATS ROW ────────────────────────────────── */}
                 <View style={styles.statsRow}>
                     {[
-                        { label: 'Bookings', value: '0', icon: 'calendar-check', color: '#FF5722' },
+                        { label: 'Bookings', value: '0', icon: 'calendar-outline', color: '#FF5722' },
                         { label: 'Events', value: '0', icon: 'trophy-outline', color: '#7C3AED' },
                         { label: 'Venues', value: '0', icon: 'heart-outline', color: '#E91E63' },
                     ].map((stat, i) => (
@@ -210,9 +254,30 @@ const styles = StyleSheet.create({
     avatarInitials: {
         fontSize: 28, fontWeight: 'bold', color: '#fff',
     },
+    avatarImage: {
+        width: 80, height: 80, borderRadius: 40,
+    },
+    cameraBadge: {
+        position: 'absolute', bottom: 2, right: 2,
+        width: 26, height: 26, borderRadius: 13,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        alignItems: 'center', justifyContent: 'center',
+        borderWidth: 2, borderColor: '#fff',
+    },
+    nameRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+    },
     heroName: {
         fontSize: 22, fontWeight: 'bold', color: '#fff',
         marginBottom: 6, letterSpacing: 0.3,
+    },
+    verifiedBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: '#4CAF50', paddingHorizontal: 8, paddingVertical: 3,
+        borderRadius: 12, marginBottom: 6,
+    },
+    verifiedBadgeText: {
+        fontSize: 11, fontWeight: 'bold', color: '#fff',
     },
     infoPill: {
         flexDirection: 'row', alignItems: 'center', gap: 5,

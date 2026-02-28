@@ -4,7 +4,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
 // Controllers
-const { getDashboard } = require('../controllers/adminDashboardController');
+const { getDashboard, getFilteredStats } = require('../controllers/adminDashboardController');
 const { getAllVenues, getVenueById, createVenue, updateVenue, deleteVenue, toggleVenueActive, venueValidation } = require('../controllers/adminVenueController');
 const { getSlots, bulkGenerateSlots, createSlot, updateSlot, toggleSlotBlock, deleteSlot } = require('../controllers/adminSlotController');
 const { getAllBookings, getBookingById, updateBookingStatus } = require('../controllers/adminBookingController');
@@ -16,6 +16,7 @@ router.use(authMiddleware, adminMiddleware);
 
 // ─── Dashboard ───────────────────────────────────────
 router.get('/dashboard', getDashboard);
+router.get('/dashboard/filtered-stats', getFilteredStats);
 
 // ─── Venues ──────────────────────────────────────────
 router.get('/venues', getAllVenues);

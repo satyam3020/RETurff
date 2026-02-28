@@ -1,19 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
+import sessionEvents from './sessionEvents';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
+// Auto-detected from config.ts — no need to hard-code an IP.
+// Override via app.json → expo.extra.apiUrl for staging / production.
+const BASE_URL = API_BASE_URL;
 // Physical device on same WiFi: use your machine's current IPv4
 // Android emulator:             http://10.0.2.2:5000/api
 // iOS simulator:                http://localhost:5000/api
 const BASE_URL = 'http://10.185.49.150:5000/api';
 
 // ─── Token Helpers ────────────────────────────────────────────────────────────
-export const saveAuthData = async (token: string, user: any) => {
+export const saveAuthData = async (token: string, user: any, refreshToken?: string) => {
     await AsyncStorage.setItem('@auth_token', token);
     await AsyncStorage.setItem('@auth_user', JSON.stringify(user));
+    if (refreshToken) await AsyncStorage.setItem('@refresh_token', refreshToken);
 };
 
 export const getAuthToken = async (): Promise<string | null> => {
     return AsyncStorage.getItem('@auth_token');
+};
+
+export const getRefreshToken = async (): Promise<string | null> => {
+    return AsyncStorage.getItem('@refresh_token');
 };
 
 export const getAuthUser = async (): Promise<any | null> => {
@@ -22,7 +32,49 @@ export const getAuthUser = async (): Promise<any | null> => {
 };
 
 export const clearAuthData = async () => {
-    await AsyncStorage.multiRemove(['@auth_token', '@auth_user']);
+    await AsyncStorage.multiRemove(['@auth_token', '@auth_user', '@refresh_token']);
+};
+
+// ─── Refresh Token Logic ──────────────────────────────────────────────────────
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempts to get a new access token using the stored refresh token.
+ * Returns true on success, false on failure.
+ * Uses a mutex so concurrent 401s don't fire multiple refresh calls.
+ */
+const attemptTokenRefresh = async (): Promise<boolean> => {
+    if (isRefreshing && refreshPromise) return refreshPromise;
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const storedRefreshToken = await getRefreshToken();
+            if (!storedRefreshToken) return false;
+
+            const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken: storedRefreshToken }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.token) {
+                await saveAuthData(data.token, data.user, data.refreshToken);
+                return true;
+            }
+            return false;
+        } catch {
+            return false;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
 };
 
 // ─── Base Fetch Utility ───────────────────────────────────────────────────────
@@ -43,6 +95,31 @@ const apiFetch = async (
             ...options,
             headers,
         });
+
+        // ── Handle 401: try refreshing the token ──────────────────────────
+        if (response.status === 401 && authenticated) {
+            const refreshed = await attemptTokenRefresh();
+
+            if (refreshed) {
+                // Retry the original request with the new access token
+                const newToken = await getAuthToken();
+                const retryHeaders = { ...headers } as any;
+                if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
+
+                const retryResponse = await fetch(`${BASE_URL}${endpoint}`, {
+                    ...options,
+                    headers: retryHeaders,
+                });
+                const retryData = await retryResponse.json();
+                return retryData;
+            }
+
+            // Refresh failed — session is truly expired
+            await clearAuthData();
+            sessionEvents.emit('session-expired');
+            return { success: false, message: 'Session expired. Please login again.' };
+        }
+
         const data = await response.json();
         return data;
     } catch (err: any) {
@@ -73,15 +150,26 @@ export const authApi = {
 export const userApi = {
     getProfile: () => apiFetch('/user/profile'),
 
-    updateProfile: (body: { name?: string; preferences?: any }) =>
+    updateProfile: (body: { name?: string; preferences?: any; profileImage?: string; bio?: string; promptsAnswered?: number }) =>
         apiFetch('/user/profile', { method: 'PUT', body: JSON.stringify(body) }),
 
     getVenues: () => apiFetch('/user/venues'),
 
-    getAvailableSlots: (venueId: string, date: string) =>
-        apiFetch(`/user/venues/${venueId}/slots?date=${date}`),
+    getAvailableSlots: (venueId: string, date: string, sport?: string, surface?: string) => {
+        const params = new URLSearchParams({ date });
+        if (sport) params.append('sport', sport);
+        if (surface) params.append('surface', surface);
+        return apiFetch(`/user/venues/${venueId}/slots?${params.toString()}`);
+    },
+
+    getVenuePitches: (venueId: string, sport: string) =>
+        apiFetch(`/user/venues/${venueId}/pitches?sport=${encodeURIComponent(sport)}`),
 
     getMyBookings: () => apiFetch('/user/bookings'),
+
+    getBookingHistory: () => apiFetch('/user/bookings/history'),
+
+    getBookingById: (id: string) => apiFetch(`/user/bookings/${id}`),
 
     createBooking: (body: {
         venueId: string;
@@ -104,6 +192,7 @@ export const userApi = {
 export const adminApi = {
     // Dashboard
     getDashboard: () => apiFetch('/admin/dashboard'),
+    getFilteredStats: (period: string = 'all') => apiFetch(`/admin/dashboard/filtered-stats?period=${period}`),
 
     // Venues
     getVenues: () => apiFetch('/admin/venues'),
@@ -189,9 +278,14 @@ export const getTurfDetails = async (id: string) => {
         : { success: false, error: 'Venue not found' };
 };
 
-/** Get available slots for a venue on a date */
-export const getAvailableSlots = async (venueId: string, date: string) => {
-    return userApi.getAvailableSlots(venueId, date);
+/** Get available slots for a venue on a date, filtered by sport and pitch (surface) */
+export const getAvailableSlots = async (venueId: string, date: string, sport?: string, surface?: string) => {
+    return userApi.getAvailableSlots(venueId, date, sport, surface);
+};
+
+/** Get distinct pitches (surfaces) that have slots for a given venue and sport */
+export const getVenuePitches = async (venueId: string, sport: string) => {
+    return userApi.getVenuePitches(venueId, sport);
 };
 
 /** Create a booking (called from BookingContext or summary screen) */
@@ -213,6 +307,16 @@ export const createBooking = async (body: {
 /** Get current user's bookings */
 export const getUserBookings = async (_userId?: string) => {
     return userApi.getMyBookings();
+};
+
+/** Get current user's booking history (completed/cancelled/rejected) */
+export const getUserBookingHistory = async () => {
+    return userApi.getBookingHistory();
+};
+
+/** Get a single booking by ID (with displayStatus) */
+export const getUserBookingById = async (id: string) => {
+    return userApi.getBookingById(id);
 };
 
 export const updateUserProfile = async (data: any) => {

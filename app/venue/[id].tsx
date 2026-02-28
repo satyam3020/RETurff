@@ -16,7 +16,7 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { COLORS, SPACING } from '../../utils/theme';
-import { getTurfDetails } from '../../services/api';
+import { getTurfDetails, getVenuePitches } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -68,6 +68,9 @@ export default function VenueDetailsScreen() {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showSportModal, setShowSportModal] = useState(false);
     const [selectedSport, setSelectedSport] = useState<any>(null); // for pitch sub-selection
+    const [dynamicPitches, setDynamicPitches] = useState<string[]>([]);
+    const [pitchesLoading, setPitchesLoading] = useState(false);
+    const [rulesExpanded, setRulesExpanded] = useState(false);
 
     const loadVenue = useCallback(async () => {
         setLoading(true);
@@ -96,13 +99,25 @@ export default function VenueDetailsScreen() {
 
     useEffect(() => { loadVenue(); }, [loadVenue]);
 
-    // Level 1 — user picked a sport, now show pitches
-    const handlePickSport = (sport: any) => {
-        if (sport.pitches && sport.pitches.length > 0) {
-            setSelectedSport(sport); // go to level 2
-        } else {
-            // no pitches — go straight to booking
-            navigateToBooking(sport.name, sport.surface || sport.name);
+    // Level 1 — user picked a sport, now dynamically fetch pitches from backend
+    const handlePickSport = async (sport: any) => {
+        setSelectedSport(sport);
+        setPitchesLoading(true);
+        setDynamicPitches([]);
+        try {
+            const res = await getVenuePitches(venueId, sport.name);
+            if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                setDynamicPitches(res.data);
+            } else {
+                // Fallback: use static pitches from venue data if backend returns none
+                const staticPitches: string[] = sport.pitches || [];
+                setDynamicPitches(staticPitches);
+            }
+        } catch {
+            const staticPitches: string[] = sport.pitches || [];
+            setDynamicPitches(staticPitches);
+        } finally {
+            setPitchesLoading(false);
         }
     };
 
@@ -129,6 +144,7 @@ export default function VenueDetailsScreen() {
     const closeModal = () => {
         setShowSportModal(false);
         setSelectedSport(null);
+        setDynamicPitches([]);
     };
 
     // ── Open in native Maps app ──────────────────────────────────────────────
@@ -283,14 +299,58 @@ export default function VenueDetailsScreen() {
                     </View>
                 )}
 
-                {/* Venue Rules */}
-                <TouchableOpacity style={styles.rulesCard}>
-                    <View style={styles.rulesLeft}>
-                        <Text style={styles.rulesTitle}>Venue Rules</Text>
-                        <Text style={styles.rulesSubtitle}>EASY CANCELLATION & RESCHEDULING</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
+                {/* Venue Rules — Expandable Accordion */}
+                <View style={styles.rulesSection}>
+                    <TouchableOpacity style={styles.rulesCard} onPress={() => setRulesExpanded(!rulesExpanded)}>
+                        <View style={styles.rulesLeft}>
+                            <View style={styles.rulesTitleRow}>
+                                <MaterialCommunityIcons name="clipboard-text-outline" size={20} color="#FF5722" />
+                                <Text style={styles.rulesTitle}>Venue Rules</Text>
+                            </View>
+                            {!rulesExpanded && (
+                                <Text style={styles.rulesSubtitle}>EASY CANCELLATION & RESCHEDULING</Text>
+                            )}
+                        </View>
+                        <Ionicons name={rulesExpanded ? 'chevron-down' : 'chevron-forward'} size={20} color="#666" />
+                    </TouchableOpacity>
+
+                    {rulesExpanded && (
+                        <View style={styles.rulesContent}>
+                            {/* Rules */}
+                            <Text style={styles.rulesHeading}>Rules</Text>
+                            <Text style={styles.ruleText}>Wear appropriate sports attire and shoes while playing.</Text>
+                            <Text style={styles.ruleText}>Be present at the venue 10 mins prior to the booked slot.</Text>
+                            <Text style={styles.ruleText}>Management is not responsible for loss of personal belongings or any injuries caused during the match.</Text>
+                            <Text style={styles.ruleText}>If more than 18 players on one pitch, it will be counted as a tournament and rates will be different.</Text>
+                            <Text style={styles.ruleText}>No water and food allowed from outside. Additional royalty charges applicable if any water or food is got from Outside.</Text>
+                            <Text style={styles.ruleText}>Additional royalty charges applicable on DJ and Sound or live YouTube.</Text>
+                            <Text style={styles.ruleText}>Additional electricity charges applicable if any equipment got by the customers consumes electricity.</Text>
+                            <Text style={styles.ruleText}>Please Carry Your Football or Cricket Bats.</Text>
+                            <Text style={styles.ruleText}>Event and tournament charges will be different which will be given as a separate quotation. Pls contact site manager for the same.</Text>
+                            <Text style={[styles.ruleText, { color: '#999', fontStyle: 'italic' }]}>Anyone who wants to divide the turf, whether horizontally or vertically, may do so.</Text>
+
+                            {/* Additional T&C */}
+                            <Text style={[styles.rulesHeading, { marginTop: 20 }]}>Additional Terms & Conditions</Text>
+                            <Text style={styles.ruleText}>No Smoking</Text>
+                            <Text style={styles.ruleText}>No Drinking</Text>
+
+                            {/* Cancellation Policy */}
+                            <Text style={[styles.rulesHeading, { marginTop: 20 }]}>Cancellation policy</Text>
+                            <View style={styles.policyItem}>
+                                <View style={styles.policyDot} />
+                                <Text style={styles.policyText}>Non Refundable if cancellation is made less than 12 hours from the slot start time.</Text>
+                            </View>
+                            <View style={styles.policyItem}>
+                                <View style={styles.policyDot} />
+                                <Text style={styles.policyText}>50% Refundable if cancellation is made 12 hours before the slot start time.</Text>
+                            </View>
+                            <View style={styles.policyItem}>
+                                <View style={styles.policyDot} />
+                                <Text style={styles.policyText}>100% Refundable if cancellation is made 24 hours before the slot start time.</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
 
                 {/* Amenities */}
                 {amenities.length > 0 && (
@@ -419,7 +479,7 @@ export default function VenueDetailsScreen() {
                                 <View style={styles.modalHeader}>
                                     <TouchableOpacity
                                         style={styles.backArrow}
-                                        onPress={() => setSelectedSport(null)}
+                                        onPress={() => { setSelectedSport(null); setDynamicPitches([]); }}
                                     >
                                         <Ionicons name="arrow-back" size={22} color="#333" />
                                     </TouchableOpacity>
@@ -429,24 +489,38 @@ export default function VenueDetailsScreen() {
                                     </TouchableOpacity>
                                 </View>
 
-                                {(selectedSport.pitches as string[]).map((pitch, i) => (
-                                    <TouchableOpacity
-                                        key={i}
-                                        style={styles.sportOption}
-                                        onPress={() => handlePickPitch(pitch)}
-                                    >
-                                        <View style={styles.sportOptionLeft}>
-                                            <View style={styles.pitchNumberBadge}>
-                                                <Text style={styles.pitchNumberText}>{i + 1}</Text>
+                                {/* Dynamic pitch list from backend */}
+                                {pitchesLoading ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                                        <ActivityIndicator color="#FF5722" />
+                                        <Text style={{ color: '#999', marginTop: 8, fontSize: 13 }}>Loading pitches...</Text>
+                                    </View>
+                                ) : dynamicPitches.length === 0 ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                                        <MaterialCommunityIcons name="stadium-outline" size={40} color="#ddd" />
+                                        <Text style={{ color: '#999', marginTop: 8, fontSize: 14 }}>No pitches available</Text>
+                                        <Text style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>Admin hasn't added slots yet</Text>
+                                    </View>
+                                ) : (
+                                    dynamicPitches.map((pitch, i) => (
+                                        <TouchableOpacity
+                                            key={i}
+                                            style={styles.sportOption}
+                                            onPress={() => handlePickPitch(pitch)}
+                                        >
+                                            <View style={styles.sportOptionLeft}>
+                                                <View style={styles.pitchNumberBadge}>
+                                                    <Text style={styles.pitchNumberText}>{i + 1}</Text>
+                                                </View>
+                                                <View style={styles.sportOptionInfo}>
+                                                    <Text style={styles.sportOptionName}>{pitch}</Text>
+                                                    <Text style={styles.sportOptionSurface}>{selectedSport.surface || 'Turf'}</Text>
+                                                </View>
                                             </View>
-                                            <View style={styles.sportOptionInfo}>
-                                                <Text style={styles.sportOptionName}>{pitch}</Text>
-                                                <Text style={styles.sportOptionSurface}>{selectedSport.surface}</Text>
-                                            </View>
-                                        </View>
-                                        <Ionicons name="chevron-forward" size={20} color="#999" />
-                                    </TouchableOpacity>
-                                ))}
+                                            <Ionicons name="chevron-forward" size={20} color="#999" />
+                                        </TouchableOpacity>
+                                    ))
+                                )}
                             </>
                         )}
                     </View>
@@ -506,14 +580,22 @@ const styles = StyleSheet.create({
     },
     sportChipText: { fontSize: 13, color: '#333' },
     aboutText: { fontSize: 14, color: '#666', lineHeight: 20 },
+    rulesSection: { borderBottomWidth: 8, borderBottomColor: '#f5f5f5' },
     rulesCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         backgroundColor: '#E3F2FD', padding: SPACING.lg,
         marginHorizontal: SPACING.lg, marginVertical: SPACING.md, borderRadius: 8,
     },
     rulesLeft: { flex: 1 },
-    rulesTitle: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 4 },
-    rulesSubtitle: { fontSize: 11, color: '#4CAF50', fontWeight: '600' },
+    rulesTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+    rulesTitle: { fontSize: 15, fontWeight: 'bold', color: '#333' },
+    rulesSubtitle: { fontSize: 11, color: '#4CAF50', fontWeight: '600', marginLeft: 28 },
+    rulesContent: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg },
+    rulesHeading: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 },
+    ruleText: { fontSize: 14, color: '#555', lineHeight: 21, marginBottom: 10 },
+    policyItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 14 },
+    policyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333', marginTop: 6 },
+    policyText: { flex: 1, fontSize: 14, color: '#555', lineHeight: 21 },
     facilitiesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     amenityItem: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: SPACING.sm },
     amenityText: { fontSize: 14, color: '#333' },

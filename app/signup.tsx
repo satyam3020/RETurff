@@ -43,7 +43,7 @@ export default function SignupScreen() {
         if (!validate()) return;
         setLoading(true);
         try {
-            const res = await authApi.register({ name: name.trim(), phone, password });
+            const res = await authApi.register({ name: name.trim(), phone, email, password });
             if (!res.success || !res.token || !res.user) {
                 Alert.alert('Registration Failed', res.message || 'Could not create account.');
                 return;

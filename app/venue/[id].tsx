@@ -31,7 +31,7 @@ const SPORT_ICONS: Record<string, string> = {
     General: 'run',
 };
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800';
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&q=80';
 
 // ─── Static fallback data for RETurf (used when backend is unavailable) ──────
 const STATIC_RETURF_VENUE = {
@@ -45,9 +45,9 @@ const STATIC_RETURF_VENUE = {
     },
     pricePerHour: 200,
     images: [
-        'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800',
-        'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800',
-        'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800',
+        'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800&q=80',
+        'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&q=80',
+        'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
     ],
     sports: [
         { _id: 's1', name: 'Cricket', surface: 'Astro Turf', pitches: ['Pitch 1', 'Pitch 2'] },

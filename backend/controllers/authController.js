@@ -6,10 +6,6 @@ const User = require('../models/User');
 const signAccessToken = (userId) =>
     jwt.sign({ id: userId }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-// ─── Helper ─────────────────────────────────────────
-const signToken = (userId) =>
-    jwt.sign({ id: userId }, process.env.JWT_SECRET || 'fallback_secret', {
-        expiresIn: process.env.JWT_EXPIRE || '7d',
     });
 
 const signRefreshToken = (userId) =>
@@ -285,6 +281,7 @@ module.exports = {
     register,
     login,
     getMe,
+    refreshToken,
     forgotPassword,
     resetPassword,
     registerValidation,

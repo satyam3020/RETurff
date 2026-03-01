@@ -19,8 +19,8 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }
     rejected: { label: 'Rejected', bg: '#F3E5F5', color: '#9C27B0' },
 };
 
-const VENUE_IMAGE = 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=400';
-
+const VENUE_IMAGE = 'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800&q=80';
+// const VENUE_IMAGE = 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=400';
 export default function BookingsScreen() {
     const { bookings, refreshBookings, isLoading } = useBookings();
     const [refreshing, setRefreshing] = useState(false);

@@ -79,6 +79,7 @@ export default function BookingConfirmationScreen() {
             // Create booking — uses the shared persistent store so admin panel sees it
             const response = await createBooking({
                 venueId: turf?.id || 'venue_001',
+                slotId: params.id as string,
                 venueName: turf?.name || 'Green Valley Sports Arena',
                 venueLocation: typeof turf?.location === 'string' ? turf.location : '',
                 date,

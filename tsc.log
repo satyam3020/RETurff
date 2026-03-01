@@ -1,0 +1,7 @@
+app/booking/[id].tsx(88,17): error TS2353: Object literal may only specify known properties, and 'userName' does not exist in type '{ venueId: string; slotId: string; venueName?: string | undefined; venueLocation?: string | undefined; date: string; startTime: string; endTime: string; sport?: string | undefined; surface?: string | undefined; totalAmount: number; }'.
+index.ts(3,17): error TS1261: Already included file name 'C:/Users/SAYTAM/Downloads/RETurff/App/index.tsx' differs from file name 'C:/Users/SAYTAM/Downloads/RETurff/app/index.tsx' only in casing.
+  The file is in the program because:
+    Imported via './App' from file 'C:/Users/SAYTAM/Downloads/RETurff/index.ts'
+    Matched by include pattern '**/*.tsx' in 'C:/Users/SAYTAM/Downloads/RETurff/tsconfig.json'
+services/api.ts(8,7): error TS2451: Cannot redeclare block-scoped variable 'BASE_URL'.
+services/api.ts(12,7): error TS2451: Cannot redeclare block-scoped variable 'BASE_URL'.

@@ -23,11 +23,11 @@ const { width, height } = Dimensions.get('window');
 type Step = 'SUCCESS' | 'NAME_GENDER' | 'AGE_EMAIL' | 'SPORTS';
 
 const SPORTS = [
-    { id: '1', name: 'Cricket', icon: '🏏', image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=200' },
-    { id: '2', name: 'Football', icon: '⚽', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=200' },
-    { id: '3', name: 'Badminton', icon: '🏸', image: 'https://images.unsplash.com/photo-1626225967045-2c76b22c4ec1?w=200' },
-    { id: '4', name: 'Pickleball', icon: '🎾', image: 'https://images.unsplash.com/photo-1612872081303-346747d34177?w=200' },
-    { id: '5', name: 'Padel', icon: '👟', image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=200' },
+    { id: '1', name: 'Cricket', icon: '🏏', image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=400&q=80' },
+    { id: '2', name: 'Football', icon: '⚽', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '3', name: 'Badminton', icon: '🏸', image: 'https://images.unsplash.com/photo-1626225967045-2c76b22c4ec1?w=400&q=80' },
+    { id: '4', name: 'Pickleball', icon: '🎾', image: 'https://images.unsplash.com/photo-1612872081303-346747d34177?w=400&q=80' },
+    { id: '5', name: 'Padel', icon: '👟', image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&q=80' },
 ];
 
 export default function CompleteProfileScreen() {

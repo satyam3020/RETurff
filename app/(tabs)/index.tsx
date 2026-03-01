@@ -23,8 +23,8 @@ const STATIC_VENUES: Turf[] = [
         location: 'Mumbai, Maharashtra',
         pricePerHour: 200,
         images: [
-            'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800',  // Football turf
-            'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800',  // Cricket turf
+            'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&q=80',
+            'https://images.unsplash.com/photo-1593341646782-e0b495cff86d?w=800&q=80',
         ],
         amenities: ['Artificial Turf', 'Flood Lights', 'Parking', 'Changing Room', 'Drinking Water'],
         rating: 4.8,

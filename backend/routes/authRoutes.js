@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe, refreshToken, registerValidation, loginValidation } = require('../controllers/authController');
 const {
     register,
     login,
     getMe,
+    refreshToken,
     forgotPassword,
     resetPassword,
     registerValidation,

@@ -9,19 +9,19 @@ const BANNER_WIDTH = width - (SPACING.md * 2);
 const BANNERS = [
     {
         id: '1',
-        title: 'Global Sports X TSG Pickleball Centre',
-        subtitle: 'NEW VENUE ALERT',
-        sport: 'PICKLEBALL',
-        location: 'BALKANJI BARI',
-        image: 'https://images.unsplash.com/photo-1612872081303-346747d34177?w=800',
+        title: 'Premium Astro Turf in City!',
+        subtitle: 'TOP RATED VENUE',
+        sport: 'FOOTBALL & CRICKET',
+        location: 'DOWNTOWN ARENA',
+        image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
     },
     {
         id: '2',
-        title: 'TSG Padel Arena',
-        subtitle: 'PREMIUM PADEL COURTS IN GOREGAON',
-        sport: 'PADEL',
-        location: 'GOREGAON EAST',
-        image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800',
+        title: 'Elite Night Box Cricket',
+        subtitle: 'PLAY UNDER THE LIGHTS',
+        sport: 'CRICKET',
+        location: 'SPORTS COMPLEX',
+        image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80',
     }
 ];
 

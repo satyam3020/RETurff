@@ -9,8 +9,8 @@ const IMAGE_WIDTH = width - (SPACING.md * 2);
 
 // Default turf images shown when backend provides none
 const DEFAULT_TURF_IMAGES = [
-    'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800',  // Football turf
-    'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800',  // Cricket turf
+    'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',  // Premium Football stadium turf
+    'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80',  // High-quality Cricket pitch
 ];
 
 interface Venue {

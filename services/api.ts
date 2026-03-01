@@ -9,7 +9,7 @@ const BASE_URL = API_BASE_URL;
 // Physical device on same WiFi: use your machine's current IPv4
 // Android emulator:             http://10.0.2.2:5000/api
 // iOS simulator:                http://localhost:5000/api
-const BASE_URL = 'http://10.185.49.150:5000/api';
+// const BASE_URL = 'http://10.185.49.150:5000/api';
 
 // ─── Token Helpers ────────────────────────────────────────────────────────────
 export const saveAuthData = async (token: string, user: any, refreshToken?: string) => {
@@ -300,6 +300,8 @@ export const createBooking = async (body: {
     sport?: string;
     surface?: string;
     totalAmount: number;
+    userName?: string;
+    userPhone?: string;
 }) => {
     return userApi.createBooking(body);
 };

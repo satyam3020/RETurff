@@ -186,6 +186,21 @@ export const userApi = {
 
     markNotificationRead: (id: string) =>
         apiFetch(`/user/notifications/${id}/read`, { method: 'PATCH' }),
+
+    // Support Requests
+    createSupportRequest: (body: { category: string; subject: string; description: string }) =>
+        apiFetch('/user/support-requests', { method: 'POST', body: JSON.stringify(body) }),
+
+    getMySupportRequests: () => apiFetch('/user/support-requests'),
+
+    // Favourites
+    toggleFavourite: (venueId: string) =>
+        apiFetch(`/user/favourites/${venueId}`, { method: 'POST' }),
+
+    getFavourites: () => apiFetch('/user/favourites'),
+
+    // Profile Stats
+    getProfileStats: () => apiFetch('/user/profile-stats'),
 };
 
 // ─── Admin API — Real Backend ─────────────────────────────────────────────────
@@ -248,6 +263,14 @@ export const adminApi = {
         apiFetch('/admin/notifications', { method: 'POST', body: JSON.stringify(body) }),
     deleteNotification: (id: string) =>
         apiFetch(`/admin/notifications/${id}`, { method: 'DELETE' }),
+
+    // Support Requests
+    getSupportRequests: (status?: string) => {
+        const params = status && status !== 'all' ? `?status=${status}` : '';
+        return apiFetch(`/admin/support-requests${params}`);
+    },
+    updateSupportRequest: (id: string, body: { status?: string; adminNote?: string }) =>
+        apiFetch(`/admin/support-requests/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 };
 
 // ─── User-Facing API Helpers ──────────────────────────────────────────────────

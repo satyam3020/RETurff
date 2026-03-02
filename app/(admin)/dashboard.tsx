@@ -35,6 +35,7 @@ const NAV_ITEMS = [
     { label: 'Bookings', icon: 'calendar-outline', route: '/(admin)/bookings', color: '#FF5722' },
     { label: 'Users', icon: 'people-outline', route: '/(admin)/users', color: '#3b82f6' },
     { label: 'Notifs', icon: 'notifications-outline', route: '/(admin)/notifications', color: '#f59e0b' },
+    { label: 'Support', icon: 'chatbox-ellipses-outline', route: '/(admin)/support-requests', color: '#10b981' },
 ];
 
 export default function AdminDashboard() {

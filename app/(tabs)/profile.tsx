@@ -13,19 +13,17 @@ import { SPACING, BORDER_RADIUS } from '../../utils/theme';
 const ACTIVITY_MENU = [
     { id: '1', label: 'Your Bookings', icon: 'calendar-check', color: '#FF5722', bg: '#FFF3EF', route: '/bookings' },
     { id: '2', label: 'My Events', icon: 'calendar-star', color: '#7C3AED', bg: '#F3EEFF' },
-    { id: '3', label: 'Favourite Venues', icon: 'heart', color: '#E91E63', bg: '#FCE4EC' },
-    { id: '4', label: 'RETurf Pass', icon: 'card-account-details', color: '#FF9800', bg: '#FFF8E1' },
+    { id: '3', label: 'Favourite Venues', icon: 'heart', color: '#E91E63', bg: '#FCE4EC', route: '/favourite-venues' },
 ];
 
 const SUPPORT_MENU = [
-    { id: '5', label: 'Help & FAQs', icon: 'help-circle', color: '#00BCD4', bg: '#E0F7FA' },
-    { id: '6', label: 'Raise a Request', icon: 'message-alert', color: '#4CAF50', bg: '#E8F5E9' },
-    { id: '7', label: 'Payments & Refunds', icon: 'cash-refund', color: '#3F51B5', bg: '#E8EAF6' },
+    { id: '5', label: 'Help & FAQs', icon: 'help-circle', color: '#00BCD4', bg: '#E0F7FA', route: '/help-faqs' },
+    { id: '6', label: 'Raise a Request', icon: 'message-alert', color: '#4CAF50', bg: '#E8F5E9', route: '/raise-request' },
 ];
 
 const LEGAL_MENU = [
-    { id: 'terms', label: 'Terms & Conditions', icon: 'file-document-outline', color: '#607D8B', bg: '#ECEFF1' },
-    { id: 'privacy', label: 'Privacy Policy', icon: 'shield-lock-outline', color: '#607D8B', bg: '#ECEFF1' },
+    { id: 'terms', label: 'Terms & Conditions', icon: 'file-document-outline', color: '#607D8B', bg: '#ECEFF1', route: '/terms' },
+    { id: 'privacy', label: 'Privacy Policy', icon: 'shield-lock-outline', color: '#607D8B', bg: '#ECEFF1', route: '/privacy-policy' },
 ];
 
 // ─── Helper: initials from name ─────────────────────────────────────────────
@@ -42,6 +40,7 @@ export default function ProfileScreen() {
     const [userEmail, setUserEmail] = useState('');
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [isVerified, setIsVerified] = useState(false);
+    const [stats, setStats] = useState({ bookings: 0, favouriteVenues: 0 });
 
     const loadProfile = useCallback(async () => {
         // First load from local cache for instant display
@@ -54,9 +53,12 @@ export default function ProfileScreen() {
         }
         // Then refresh from backend for latest data
         try {
-            const res = await userApi.getProfile();
-            if (res.success && res.data) {
-                const u = res.data;
+            const [profileRes, statsRes] = await Promise.all([
+                userApi.getProfile(),
+                userApi.getProfileStats().catch(() => null),
+            ]);
+            if (profileRes.success && profileRes.data) {
+                const u = profileRes.data;
                 if (u.name) setUserName(u.name);
                 if (u.phone) setUserPhone(u.phone);
                 if (u.profileImage) setProfileImage(u.profileImage);
@@ -68,6 +70,9 @@ export default function ProfileScreen() {
                     && !!u.preferences?.age && !!u.preferences?.gender
                     && Array.isArray(u.preferences?.interestedSports) && u.preferences.interestedSports.length > 0;
                 setIsVerified(verified);
+            }
+            if (statsRes?.success && statsRes.data) {
+                setStats(statsRes.data);
             }
         } catch { /* backend may be offline */ }
     }, []);
@@ -182,9 +187,9 @@ export default function ProfileScreen() {
                 {/* ── STATS ROW ────────────────────────────────── */}
                 <View style={styles.statsRow}>
                     {[
-                        { label: 'Bookings', value: '0', icon: 'calendar-outline', color: '#FF5722' },
+                        { label: 'Bookings', value: String(stats.bookings), icon: 'calendar-outline', color: '#FF5722' },
                         { label: 'Events', value: '0', icon: 'trophy-outline', color: '#7C3AED' },
-                        { label: 'Venues', value: '0', icon: 'heart-outline', color: '#E91E63' },
+                        { label: 'Venues', value: String(stats.favouriteVenues), icon: 'heart-outline', color: '#E91E63' },
                     ].map((stat, i) => (
                         <View key={i} style={styles.statItem}>
                             <Ionicons name={stat.icon as any} size={20} color={stat.color} />

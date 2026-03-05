@@ -10,6 +10,7 @@ const { getSlots, bulkGenerateSlots, createSlot, updateSlot, toggleSlotBlock, de
 const { getAllBookings, getBookingById, updateBookingStatus } = require('../controllers/adminBookingController');
 const { getAllUsers, getUserById, getUserBookings, toggleBlockUser, promoteToAdmin } = require('../controllers/adminUserController');
 const { getAllNotifications, createNotification, deleteNotification, notificationValidation } = require('../controllers/adminNotificationController');
+const { getAllRequests, updateRequestStatus } = require('../controllers/supportRequestController');
 
 // Apply auth + admin guard to ALL routes in this router
 router.use(authMiddleware, adminMiddleware);
@@ -50,5 +51,9 @@ router.patch('/users/:id/promote', promoteToAdmin);
 router.get('/notifications', getAllNotifications);
 router.post('/notifications', notificationValidation, createNotification);
 router.delete('/notifications/:id', deleteNotification);
+
+// ─── Support Requests ────────────────────────────────
+router.get('/support-requests', getAllRequests);
+router.put('/support-requests/:id', updateRequestStatus);
 
 module.exports = router;

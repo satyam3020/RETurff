@@ -62,6 +62,7 @@ export default function AdminLayout() {
             <Stack.Screen name="bookings" options={{ title: 'Booking Management' }} />
             <Stack.Screen name="users" options={{ title: 'User Management' }} />
             <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+            <Stack.Screen name="support-requests" options={{ title: 'Support Requests' }} />
         </Stack>
     );
 }

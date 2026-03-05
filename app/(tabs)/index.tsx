@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getVenues } from '../../services/api';
+import { getVenues, userApi } from '../../services/api';
 import { COLORS, SPACING } from '../../utils/theme';
 import type { Turf } from '../../types';
 
@@ -34,6 +34,7 @@ const STATIC_VENUES: Turf[] = [
 
 export default function HomeScreen() {
     const [venues, setVenues] = useState<Turf[]>(STATIC_VENUES);
+    const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -43,15 +44,21 @@ export default function HomeScreen() {
         setError(null);
 
         try {
-            const response = await getVenues();
-            if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-                setVenues(response.data);
+            const [venueRes, favRes] = await Promise.all([
+                getVenues(),
+                userApi.getFavourites().catch(() => ({ success: false, data: [] })),
+            ]);
+
+            if (venueRes.success && Array.isArray(venueRes.data) && venueRes.data.length > 0) {
+                setVenues(venueRes.data);
             } else {
-                // Backend returned nothing — keep showing the static venue
                 setVenues(STATIC_VENUES);
             }
+
+            if (favRes.success && Array.isArray(favRes.data)) {
+                setFavouriteIds(favRes.data.map((v: any) => v._id || v.id || v));
+            }
         } catch {
-            // Network error — keep showing the static venue
             setVenues(STATIC_VENUES);
         }
 
@@ -67,6 +74,12 @@ export default function HomeScreen() {
         setRefreshing(true);
         loadData();
     }, []);
+
+    const handleToggleFavourite = (venueId: string, newState: boolean) => {
+        setFavouriteIds((prev) =>
+            newState ? [...prev, venueId] : prev.filter((id) => id !== venueId)
+        );
+    };
 
     if (loading && !refreshing) {
         return (
@@ -101,7 +114,12 @@ export default function HomeScreen() {
                 {/* 4. Venue Listing Cards */}
                 <View style={styles.listContainer}>
                     {venues.map((venue) => (
-                        <VenueListingCard key={venue.id} venue={venue} />
+                        <VenueListingCard
+                            key={venue.id}
+                            venue={venue}
+                            isFavourite={favouriteIds.includes(venue.id)}
+                            onToggleFavourite={handleToggleFavourite}
+                        />
                     ))}
                 </View>
 

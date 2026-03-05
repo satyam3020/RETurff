@@ -56,6 +56,41 @@ export default function RootLayout() {
                                 presentation: 'card',
                             }}
                         />
+                        <Stack.Screen
+                            name="raise-request"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="favourite-venues"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="help-faqs"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="terms"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="privacy-policy"
+                            options={{
+                                headerShown: false,
+                                presentation: 'card',
+                            }}
+                        />
                     </Stack>
                 </ErrorBoundary>
             </BookingProvider>

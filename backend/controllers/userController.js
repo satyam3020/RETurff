@@ -323,8 +323,73 @@ const markNotificationRead = async (req, res, next) => {
     }
 };
 
+/**
+ * POST /api/user/favourites/:venueId
+ * Toggle favourite status for a venue
+ */
+const toggleFavourite = async (req, res, next) => {
+    try {
+        const { venueId } = req.params;
+        const user = await User.findById(req.user._id);
+
+        const idx = user.favouriteVenues.indexOf(venueId);
+        if (idx === -1) {
+            user.favouriteVenues.push(venueId);
+        } else {
+            user.favouriteVenues.splice(idx, 1);
+        }
+        await user.save();
+
+        res.json({
+            success: true,
+            isFavourite: idx === -1, // true if just added
+            data: user.favouriteVenues,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/user/favourites
+ * Get user's favourite venues with full venue details
+ */
+const getFavouriteVenues = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id).populate('favouriteVenues');
+        res.json({ success: true, data: user.favouriteVenues || [] });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/user/profile-stats
+ * Returns booking count and favourite venue count for the profile screen
+ */
+const getProfileStats = async (req, res, next) => {
+    try {
+        const [bookingCount, user] = await Promise.all([
+            Booking.countDocuments({ userId: req.user._id }),
+            User.findById(req.user._id),
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                bookings: bookingCount,
+                favouriteVenues: user.favouriteVenues?.length || 0,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getMyBookings, createBooking, getBookingById, getBookingHistory, getProfile, updateProfile,
     getVenues, getAvailableSlots, getVenuePitches, getNotifications, markNotificationRead,
+    toggleFavourite, getFavouriteVenues, getProfileStats,
     bookingValidation,
 };
+

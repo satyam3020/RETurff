@@ -1,6 +1,6 @@
 // Booking Detail Screen — shows full booking info with dynamic status
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
@@ -225,6 +225,24 @@ export default function BookingDetailScreen() {
                     </View>
                 </View>
 
+                {/* QR Code Payment Option */}
+                {(booking.paymentStatus !== 'paid' && booking.displayStatus === 'Payment Pending') && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Ionicons name="qr-code-outline" size={20} color="#FF5722" />
+                            <Text style={styles.cardTitle}>Pay with UPI</Text>
+                        </View>
+                        <View style={styles.qrContainer}>
+                            <Image 
+                                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=surajsha2004-1@oksbi&am=${booking.totalAmount}&cu=INR&pn=RETurff` }}
+                                style={styles.qrImage}
+                            />
+                            <Text style={styles.qrUpiId}>UPI ID: surajsha2004-1@oksbi</Text>
+                            <Text style={styles.qrScanText}>Scan to pay with any UPI app</Text>
+                        </View>
+                    </View>
+                )}
+
                 {/* Booking Info */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
@@ -331,4 +349,10 @@ const styles = StyleSheet.create({
     detailValue: { fontSize: 14, color: '#333', fontWeight: '600' },
     priceValue: { fontSize: 18, fontWeight: 'bold', color: '#FF5722' },
     payBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+
+    // QR Code
+    qrContainer: { alignItems: 'center', paddingVertical: SPACING.md },
+    qrImage: { width: 220, height: 220, marginBottom: SPACING.sm },
+    qrUpiId: { fontSize: 16, color: '#333', marginTop: SPACING.md },
+    qrScanText: { fontSize: 15, color: '#666', marginTop: 8 },
 });
